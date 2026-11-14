@@ -4,7 +4,8 @@
 
 ## AI 세션 → API 세션
 - `backend/app/collectors/url_detect.py` → `detect_platform_and_id(url: str) -> dict` : `platform`, `video_id`(없으면 null), `normalized_url`; 허용 스킴 http/https만.
-- `backend/app/collectors/youtube.py` → `fetch_youtube_comments(video_id: str, limit: int = 200) -> list[dict]`: content/author/posted_at/comment_url/parent_id/like_count. 최상위+답글 포함 총량 limit.
+- `backend/app/collectors/youtube.py` → `fetch_youtube_comments(video_id: str, limit: int | None = None) -> list[dict]`: content/author/posted_at/comment_url/parent_id/like_count. 최상위+답글 포함 총량 limit(최신순). `None`이면 환경변수 `YOUTUBE_MAX_COMMENTS`(기본 10000), `0`이면 무제한.
+- `backend/app/collectors/youtube.py` → `fetch_youtube_comment_count(video_id: str) -> int | None`: videos.list(part=statistics)의 `commentCount`(답글 포함 전체 댓글 수). 값이 없으면 None.
 - `backend/app/analysis/extract_image.py` → `extract_comments_from_image(image_bytes: bytes, mime_type: str) -> list[dict]` : content 필수, author/posted_at는 불명일 때 null. 실제 원본 증거는 API에서 저장.
 - `backend/app/analysis/classify.py` → `analyze_comments(comments: list[dict], context: str | None = None) -> list[dict]`: id 연결 가능한 `comment_id`, level, level_label, issues, flagged_phrases, reason, check_points, disclaimer.
 - `backend/app/analysis/agent_review.py` → `review_evidence(evidence: list[dict], answers: list[dict]) -> dict`: completeness, checklist, questions. completeness는 법적 충분성이 아니라 서비스 기입률.
