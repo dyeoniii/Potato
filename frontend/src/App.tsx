@@ -22,7 +22,7 @@ export default function App() {
           element={
             <p className="text-sm">
               페이지를 찾을 수 없습니다.{' '}
-              <Link to="/" className="font-semibold text-brand-600">
+              <Link to="/" className="font-semibold text-brand-700">
                 홈으로
               </Link>
             </p>

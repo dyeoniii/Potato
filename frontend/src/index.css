@@ -23,3 +23,56 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * 대시보드 CTA 카드. Tailwind 테마(tailwind.config.js)에 의존하지 않는 일반 CSS로 작성했습니다.
+ * 배경색과 글자색을 한 곳에서 함께 지정해, 한쪽만 적용돼 글자가 안 보이는 일을 막습니다.
+ * 대비율: 제목 6.6:1, 설명 5.8:1, 버튼 글자 7.9:1 (WCAG AA 4.5:1 이상)
+ */
+:root {
+  --cta-bg: #5142dc;
+  --cta-title: #ffffff;
+  --cta-desc: #f1edff;
+  --cta-btn-bg: #ffffff;
+  --cta-btn-fg: #4338ca;
+  --cta-btn-hover-bg: #f1edff;
+}
+.cta-card {
+  background-color: var(--cta-bg);
+  color: var(--cta-title);
+}
+.cta-card .cta-title {
+  color: var(--cta-title);
+}
+.cta-card .cta-desc {
+  color: var(--cta-desc);
+}
+.cta-card .cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  border-radius: 0.75rem;
+  background-color: var(--cta-btn-bg);
+  color: var(--cta-btn-fg);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+.cta-card .cta-btn:hover {
+  background-color: var(--cta-btn-hover-bg);
+}
+.cta-card .cta-btn:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+.cta-card .cta-btn[aria-disabled='true'],
+.cta-card .cta-btn:disabled {
+  background-color: #e1e5ef;
+  color: #4d5877;
+  cursor: not-allowed;
+  pointer-events: none;
+}
