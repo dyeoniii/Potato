@@ -2,7 +2,7 @@ import { FolderOpen, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
-import { Button, Card, ConfirmModal, Disclaimer, EmptyState, ErrorBox, LoadingBlock, PageHeader, SectionTitle, inputCls } from '../components/common';
+import { Badge, Button, Card, ConfirmModal, Disclaimer, EmptyState, ErrorBox, LoadingBlock, PageHeader, SectionTitle, inputCls } from '../components/common';
 import { errMessage, formatKst } from '../lib/format';
 import { useCaseDetails } from '../lib/useCaseDetails';
 import type { CaseSummary } from '../types';
@@ -54,19 +54,19 @@ export default function CasesPage() {
     <div className="space-y-6">
       <PageHeader title="내 사건 관리" desc="사건마다 댓글, 판독 결과, 증거를 따로 보관합니다." />
 
-      <Card className="space-y-4">
+      <Card className="space-y-3">
         <SectionTitle>새 사건 만들기</SectionTitle>
-        <div className="grid gap-3">
-          <label className="block text-sm font-semibold text-ink-800">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="field-label">
             사건 제목
             <input className={`${inputCls} mt-1.5 font-normal`} placeholder="예: 게시물 A 비방 댓글" value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
-          <label className="block text-sm font-semibold text-ink-800">
+          <label className="field-label">
             사건 설명 (선택)
-            <textarea className={`${inputCls} mt-1.5 min-h-20 font-normal`} placeholder="어떤 일이 있었는지 간단히 적어 주세요" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <textarea className={`${inputCls} mt-1.5 min-h-[2.75rem] font-normal`} rows={1} placeholder="어떤 일이 있었는지 간단히 적어 주세요" value={description} onChange={(e) => setDescription(e.target.value)} />
           </label>
         </div>
-        <Button className="w-full bg-brand-700 hover:bg-brand-800 sm:w-auto" busy={busy} busyLabel="만드는 중…" onClick={() => void create()}>
+        <Button className="w-full sm:w-auto" busy={busy} busyLabel="만드는 중…" onClick={() => void create()}>
           <Plus className="h-4 w-4" aria-hidden />
           사건 만들기
         </Button>
@@ -85,21 +85,18 @@ export default function CasesPage() {
             const d = detailById.get(c.id);
             return (
               <li key={c.id}>
-                <Card className="flex h-full flex-col gap-3 !p-4">
+                <Card compact className="flex h-full flex-col gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-base font-bold">{c.title}</h3>
-                    <p className="mt-1 line-clamp-2 min-h-10 text-sm text-ink-600">{d ? d.description || '설명이 없습니다.' : '\u00a0'}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-ink-600">{d ? d.description || '설명이 없습니다.' : '\u00a0'}</p>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
-                    <span className="rounded-full bg-brand-100 px-2.5 py-1 text-brand-800">증거 {c.saved_count}건</span>
-                    {d && <span className="rounded-full bg-ink-100 px-2.5 py-1 text-ink-700">댓글 {d.comments.length}개</span>}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge>증거 {c.saved_count}건</Badge>
+                    {d && <Badge tone="neutral">댓글 {d.comments.length}개</Badge>}
+                    <span className="text-xs text-ink-600">· 생성 {formatKst(c.created_at)}</span>
                   </div>
-                  <p className="text-xs text-ink-600">생성 {formatKst(c.created_at)}</p>
-                  <div className="mt-auto flex gap-2 pt-1">
-                    <Link
-                      to={`/cases/${c.id}`}
-                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand-700 text-sm font-semibold text-white hover:bg-brand-800"
-                    >
+                  <div className="mt-auto flex gap-2">
+                    <Link to={`/cases/${c.id}`} className="btn btn-primary flex-1">
                       상세 보기
                     </Link>
                     <Button variant="danger" onClick={() => setTarget(c)} aria-label={`${c.title} 삭제`}>

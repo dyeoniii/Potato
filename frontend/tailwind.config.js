@@ -1,4 +1,8 @@
 /** @type {import('tailwindcss').Config} */
+// 색상 값은 src/index.css 의 CSS 변수(디자인 토큰)가 정의합니다. 여기서는 이름만 연결합니다.
+const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+const scale = (prefix, steps) => Object.fromEntries(steps.map((s) => [s, token(`${prefix}-${s}`)]));
+
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
@@ -7,36 +11,16 @@ export default {
         sans: ['Pretendard Variable', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'Apple SD Gothic Neo', 'Noto Sans KR', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 1px 2px rgba(76, 29, 149, 0.05), 0 4px 16px rgba(76, 29, 149, 0.07)',
+        card: 'var(--shadow-card)',
+      },
+      borderRadius: {
+        card: 'var(--radius-card)',
+        ctl: 'var(--radius-ctl)',
       },
       colors: {
-        // 메인 영역 연보라 배경
-        canvas: '#efeaff',
-        // 퍼플 포인트
-        brand: {
-          50: '#f5f3ff',
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          300: '#c4b5fd',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#6d28d9',
-          800: '#5b21b6',
-        },
-        // 네이비 텍스트 / 라이트 그레이 면
-        ink: {
-          50: '#f6f7fb',
-          100: '#eef0f6',
-          200: '#e1e5ef',
-          300: '#cbd1e1',
-          400: '#9aa3bc',
-          500: '#6b7593',
-          600: '#4d5877',
-          700: '#34406a',
-          800: '#1f2a52',
-          900: '#0f1b3d',
-        },
+        canvas: token('canvas'),
+        brand: scale('brand', [50, 100, 200, 300, 400, 500, 600, 700, 800]),
+        ink: scale('ink', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]),
       },
     },
   },
