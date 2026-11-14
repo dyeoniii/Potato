@@ -2,6 +2,7 @@ import { Download, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api';
 import { errMessage, triggerDownload } from '../lib/format';
+import { useMaskAuthors } from '../lib/maskAuthors';
 import type { DocumentKind } from '../types';
 import { Badge, Button, Disclaimer, ErrorBox, InfoBox, Panel } from './common';
 
@@ -12,6 +13,7 @@ const DOCS: { kind: DocumentKind; title: string; desc: string }[] = [
 
 /** 문서 센터: 사건에서 만들 수 있는 PDF 2종을 목록으로 보여 주고 다운로드합니다. */
 export default function DocumentsPanel({ caseId, savedCount }: { caseId: string; savedCount: number }) {
+  const { mask } = useMaskAuthors();
   const [busy, setBusy] = useState<DocumentKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export default function DocumentsPanel({ caseId, savedCount }: { caseId: string;
     setError(null);
     setDone(null);
     try {
-      const { blob, filename } = await api.downloadDocument(caseId, kind);
+      const { blob, filename } = await api.downloadDocument(caseId, kind, mask);
       triggerDownload(blob, filename);
       setDone(`${filename} 파일을 내려받았습니다.`);
     } catch (e) {
@@ -35,6 +37,11 @@ export default function DocumentsPanel({ caseId, savedCount }: { caseId: string;
     <div className="space-y-3">
       {savedCount === 0 && <InfoBox tone="warn">저장된 증거가 없습니다. 판독 탭에서 댓글을 증거함에 저장한 뒤 문서를 만들 수 있습니다.</InfoBox>}
       <ErrorBox message={error} onClose={() => setError(null)} />
+      <InfoBox>
+        {mask
+          ? '작성자 가리기가 켜져 있어 PDF의 작성자도 가려서(앞 1글자 + **) 출력됩니다. 원본 작성자로 출력하려면 상단의 “작성자 가리기”를 꺼 주세요.'
+          : 'PDF에는 원본 작성자가 그대로 들어갑니다. 공유용이라면 상단의 “작성자 가리기”를 켠 뒤 내려받으세요.'}
+      </InfoBox>
       {done && <InfoBox>{done}</InfoBox>}
       <Panel title="문서 센터" flush>
         {DOCS.map((d) => (

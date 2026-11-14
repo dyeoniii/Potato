@@ -5,7 +5,7 @@ import shutil
 
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.common import get_case_or_404
 from app.api.errors import AppError
@@ -41,7 +41,17 @@ def list_cases(db: Session = Depends(get_db)) -> list[dict]:
 
 @router.get("/{case_id}", response_model=CaseDetail)
 def get_case(case_id: str, db: Session = Depends(get_db)) -> Case:
-    return get_case_or_404(db, case_id)
+    get_case_or_404(db, case_id)
+    # 댓글이 수천 개여도 댓글마다 판독을 따로 조회하지 않도록 한 번에 불러온다.
+    return db.scalars(
+        select(Case)
+        .where(Case.id == case_id)
+        .options(
+            selectinload(Case.sources),
+            selectinload(Case.comments).selectinload(Comment.analysis),
+            selectinload(Case.answers),
+        )
+    ).one()
 
 
 @router.delete("/{case_id}", status_code=204)

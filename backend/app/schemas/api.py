@@ -68,6 +68,10 @@ class CaseSummary(BaseModel):
 
 
 # ---------- 분석 ----------
+STATEMENT_TYPES = ("의견 표명", "사실 적시", "허위사실 의심", "해당 없음")
+MAX_RELATED_LAWS = 2
+
+
 class AnalysisBrief(ORMModel):
     level: Level
     level_label: str
@@ -76,6 +80,9 @@ class AnalysisBrief(ORMModel):
     reason: str
     check_points: list[str]
     disclaimer: str
+    # 선택·참고용. 이전에 판독한 댓글에는 null.
+    statement_type: str | None = None
+    related_laws: list[str] | None = None
 
 
 class AnalysisResult(BaseModel):
@@ -91,6 +98,22 @@ class AnalysisResult(BaseModel):
     reason: str = ""
     check_points: list[str] = Field(default_factory=list)
     disclaimer: str = DISCLAIMER
+    statement_type: str | None = None
+    related_laws: list[str] | None = None
+
+    @field_validator("statement_type", mode="before")
+    @classmethod
+    def _known_statement_type(cls, v):
+        return v if isinstance(v, str) and v.strip() in STATEMENT_TYPES else None
+
+    @field_validator("related_laws", mode="before")
+    @classmethod
+    def _laws_list(cls, v):
+        if v is None:
+            return None
+        if not isinstance(v, list):
+            return None
+        return [x.strip() for x in v if isinstance(x, str) and x.strip()][:MAX_RELATED_LAWS]
 
     @model_validator(mode="after")
     def _normalize(self) -> "AnalysisResult":
@@ -111,6 +134,29 @@ class AnalyzeRequest(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     results: list[AnalysisResult]
+
+
+class LevelCounts(BaseModel):
+    legal_review: int = 0
+    needs_context: int = 0
+    low_risk: int = 0
+
+
+class AnalyzeAllStatus(BaseModel):
+    """전체 자동 판독 진행 상황. 개수는 DB의 실제 판독 결과에서 센다."""
+
+    case_id: str
+    running: bool
+    stopping: bool = False  # 중단 요청을 받고 진행 중인 배치를 마무리하는 중
+    total: int
+    analyzed: int
+    pending: int
+    failed: int = 0  # 이번 실행에서 판독하지 못한 댓글 수(다시 실행하면 재시도)
+    run_total: int = 0  # 가장 최근 실행의 대상 수(force 실행이면 이미 판독된 댓글 포함)
+    run_done: int = 0  # 가장 최근 실행에서 결과가 저장된 수
+    counts: LevelCounts
+    message: str | None = None  # 속도 제한 대기·실패 안내
+    error: str | None = None
 
 
 # ---------- 소스/댓글 ----------
@@ -157,6 +203,38 @@ class CommentPatch(BaseModel):
         return self
 
 
+class BulkCommentPatch(BaseModel):
+    """여러 댓글의 증거함 저장 상태를 한 번에 바꾼다. user_confirmed·메모는 건드리지 않는다.
+
+    대상은 ``comment_ids`` 또는 (``case_id`` + ``level``) 중 하나로 지정한다.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    saved: bool
+    comment_ids: list[str] | None = Field(default=None, min_length=1, max_length=20000)
+    case_id: str | None = Field(default=None, max_length=64)
+    level: Level | None = None
+
+    @model_validator(mode="after")
+    def _one_target(self) -> "BulkCommentPatch":
+        by_ids = self.comment_ids is not None
+        by_level = self.level is not None
+        if by_ids == by_level:
+            raise ValueError("comment_ids 또는 level(+case_id) 중 하나만 지정해야 합니다.")
+        if by_level and not self.case_id:
+            raise ValueError("level로 지정할 때는 case_id가 필요합니다.")
+        if by_ids:
+            self.comment_ids = list(dict.fromkeys(self.comment_ids or []))
+        return self
+
+
+class BulkCommentResult(BaseModel):
+    saved: bool
+    updated: int
+    comment_ids: list[str]
+    missing: list[str] = Field(default_factory=list)
+
+
 # ---------- 입력 ----------
 class TextInput(BaseModel):
     text: str = Field(min_length=1, max_length=200_000)
@@ -171,6 +249,9 @@ class UrlInput(BaseModel):
 class InputResponse(BaseModel):
     source: SourceOut
     comments: list[CommentOut]
+    # YouTube 입력에서만 채워짐. 전체 댓글 수(videos.list commentCount)와 한도 초과 안내.
+    total_available: int | None = None
+    notice: str | None = None
 
 
 # ---------- 사건 상세 ----------

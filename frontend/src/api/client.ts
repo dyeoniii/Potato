@@ -81,12 +81,16 @@ export const realApi: Api = {
   },
   analyze: (id, commentIds) =>
     json(`/cases/${encodeURIComponent(id)}/analyze`, jsonInit('POST', { comment_ids: commentIds })),
+  analyzeAll: (id, force) => json(`/cases/${encodeURIComponent(id)}/analyze-all${force ? '?force=true' : ''}`, { method: 'POST' }),
+  analyzeAllStatus: (id) => json(`/cases/${encodeURIComponent(id)}/analyze-all/status`),
+  analyzeAllStop: (id) => json(`/cases/${encodeURIComponent(id)}/analyze-all/stop`, { method: 'POST' }),
+  bulkSave: (body) => json('/comments/bulk', jsonInit('PATCH', body)),
   patchComment: (commentId, patch) => json(`/comments/${encodeURIComponent(commentId)}`, jsonInit('PATCH', patch)),
   agentReview: (id) => json(`/cases/${encodeURIComponent(id)}/agent/review`, { method: 'POST' }),
   agentAnswers: (id, answers) =>
     json(`/cases/${encodeURIComponent(id)}/agent/answers`, jsonInit('POST', { answers })),
-  downloadDocument: async (id, kind) => {
-    const res = await raw(`/cases/${encodeURIComponent(id)}/documents/${kind}.pdf`);
+  downloadDocument: async (id, kind, maskAuthor) => {
+    const res = await raw(`/cases/${encodeURIComponent(id)}/documents/${kind}.pdf${maskAuthor ? '?mask_author=true' : ''}`);
     return { blob: await res.blob(), filename: filenameFrom(res, `${kind}.pdf`) };
   },
 };

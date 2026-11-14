@@ -14,9 +14,9 @@ from app.db import get_db
 router = APIRouter(prefix="/cases/{case_id}/documents", tags=["documents"])
 
 
-def _pdf_response(case_id: str, db: Session, func_name: str, filename: str) -> Response:
+def _pdf_response(case_id: str, db: Session, func_name: str, filename: str, mask_author: bool = False) -> Response:
     case = get_case_or_404(db, case_id)
-    case_data = case_detail_dict(case, saved_only=True)
+    case_data = case_detail_dict(case, saved_only=True, mask_authors=mask_author)
     if not case_data["comments"]:
         raise AppError(400, "NO_EVIDENCE", "저장된 증거가 없습니다. 댓글을 증거함에 저장한 뒤 다시 시도해 주세요.")
     generator: Callable[[dict], bytes] = getattr(adapters, func_name)
@@ -36,10 +36,11 @@ def _pdf_response(case_id: str, db: Session, func_name: str, filename: str) -> R
 
 
 @router.get("/statement.pdf")
-def statement_pdf(case_id: str, db: Session = Depends(get_db)) -> Response:
-    return _pdf_response(case_id, db, "generate_statement_pdf", "statement")
+def statement_pdf(case_id: str, mask_author: bool = False, db: Session = Depends(get_db)) -> Response:
+    """mask_author=true면 작성자를 앞 1글자 + '**'로 가려 출력한다(기본은 원본)."""
+    return _pdf_response(case_id, db, "generate_statement_pdf", "statement", mask_author)
 
 
 @router.get("/evidence-list.pdf")
-def evidence_list_pdf(case_id: str, db: Session = Depends(get_db)) -> Response:
-    return _pdf_response(case_id, db, "generate_evidence_list_pdf", "evidence-list")
+def evidence_list_pdf(case_id: str, mask_author: bool = False, db: Session = Depends(get_db)) -> Response:
+    return _pdf_response(case_id, db, "generate_evidence_list_pdf", "evidence-list", mask_author)

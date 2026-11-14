@@ -95,6 +95,9 @@ class Analysis(Base):
     reason: Mapped[str] = mapped_column(Text)
     check_points: Mapped[list] = mapped_column(JSON, default=list)
     disclaimer: Mapped[str] = mapped_column(Text)
+    # 선택(참고용) 필드. 이전 판독 결과에는 없을 수 있다.
+    statement_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    related_laws: Mapped[list | None] = mapped_column(JSON, nullable=True)
     analyzed_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     comment: Mapped[Comment] = relationship(back_populates="analysis")

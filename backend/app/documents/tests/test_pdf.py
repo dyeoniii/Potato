@@ -42,6 +42,30 @@ def test_korean_text_and_fields_in_pdf(case):
     assert "증거 목록" in e and case["sources"][1]["file_sha256"][:16] in e
 
 
+def test_ref_text_has_reference_label_and_handles_missing():
+    t = mod._ref_text({"statement_type": "의견 표명", "related_laws": ["형법 제311조(모욕)"]})
+    assert t.count("[참고]") == 2 and "의견 표명" in t and "형법 제311조(모욕)" in t and "성립 여부를 뜻하지 않음" in t
+    assert mod._ref_text(None) == mod.UNKNOWN
+    assert mod._ref_text({"level": "low_risk"}) == mod.UNKNOWN
+    assert "[참고] 발언 유형: 의견 표명" in mod._ref_text({"statement_type": "의견 표명", "related_laws": []})
+
+
+def test_reference_fields_shown_with_reference_label(case):
+    c = copy.deepcopy(case)
+    saved = [x for x in c["comments"] if x.get("saved")]
+    saved[0]["analysis"] = {"level": "needs_context", "level_label": "추가 맥락 확인 필요", "issues": [],
+                            "flagged_phrases": [], "reason": "가상", "check_points": [],
+                            "statement_type": "사실 적시", "related_laws": ["형법 제307조(명예훼손)"]}
+    for fn in (generate_statement_pdf, generate_evidence_list_pdf):
+        data = fn(c)
+        assert data.startswith(b"%PDF")
+    s = _text(generate_statement_pdf(c))
+    e = _text(generate_evidence_list_pdf(c))
+    for text in (s, e):
+        assert "[참고]" in text and "사실 적시" in text and "형법 제307조" in text
+    assert "AI 참고" in e
+
+
 def test_only_saved_comments_included(case):
     e = _text(generate_evidence_list_pdf(case))
     assert "오늘 영상 편집 진짜 깔끔하네요" not in e  # saved=False

@@ -4,12 +4,15 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { api } from '../api';
 import CommentsPanel from '../components/CommentsPanel';
 import DocumentsPanel from '../components/DocumentsPanel';
+import AnalyzeProgress from '../components/AnalyzeProgress';
 import EvidencePanel from '../components/EvidencePanel';
 import InputPanel from '../components/InputPanel';
 import ReviewPanel from '../components/ReviewPanel';
 import { Button, Card, ConfirmModal, ErrorBox, InfoBox, LevelBadge, LoadingBlock, Panel, StatusBadge, TabBar, type TabItem } from '../components/common';
 import { errMessage, formatKst } from '../lib/format';
+import { useMaskAuthors } from '../lib/maskAuthors';
 import { caseStatus } from '../lib/status';
+import { useAnalyzeAll } from '../lib/useAnalyzeAll';
 import { LEVEL_LABEL, type CaseDetail, type CommentItem, type InputResponse, type RiskLevel } from '../types';
 
 type Tab = 'input' | 'comments' | 'evidence' | 'review' | 'docs';
@@ -41,9 +44,15 @@ export default function CaseDetailPage() {
     void load();
   }, [load]);
 
+  const analyzeAll = useAnalyzeAll(id, load);
+  const { mask, setMask } = useMaskAuthors();
+
   function onInput(res: InputResponse) {
     setData((d) => (d ? { ...d, sources: [...d.sources, res.source], comments: [...d.comments, ...res.comments] } : d));
-    if (res.comments.length > 0) setTab('comments');
+    if (res.comments.length > 0) {
+      setTab('comments');
+      void analyzeAll.start(); // 입력이 끝나면 판독 안 된 댓글 전체를 자동 판독
+    }
   }
 
   const setComments = (comments: CommentItem[]) => setData((d) => (d ? { ...d, comments } : d));
@@ -103,6 +112,10 @@ export default function CaseDetailPage() {
             <span className="hidden sm:inline">삭제</span>
           </Button>
         </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={mask} onChange={(e) => setMask(e.target.checked)} />
+          작성자 가리기 (데모용 · 화면 표시만 바뀌고 저장된 원본은 그대로)
+        </label>
         <ErrorBox message={error} onClose={() => setError(null)} />
       </Card>
 
@@ -110,6 +123,7 @@ export default function CaseDetailPage() {
         <div className="min-w-0 space-y-5">
       <TabBar label="사건 메뉴" items={tabs} value={tab} onChange={setTab} />
 
+      <AnalyzeProgress status={analyzeAll.status} error={analyzeAll.error} onCloseError={analyzeAll.clearError} onStart={() => void analyzeAll.start()} onStop={() => void analyzeAll.stop()} />
       {tab === 'input' && (
         <>
           {sharedUrl && <InfoBox>공유받은 주소를 채웠습니다. 내용을 확인한 뒤 직접 “댓글 가져오기”를 눌러 주세요.</InfoBox>}
@@ -117,7 +131,16 @@ export default function CaseDetailPage() {
         </>
       )}
       {tab === 'comments' && (
-        <CommentsPanel caseId={data.id} comments={data.comments} sources={data.sources} onChange={setComments} onGoInput={() => setTab('input')} />
+        <CommentsPanel
+          caseId={data.id}
+          comments={data.comments}
+          sources={data.sources}
+          analyzing={analyzeAll.running}
+          status={analyzeAll.status}
+          onChange={setComments}
+          onGoInput={() => setTab('input')}
+          onReanalyze={() => void analyzeAll.start(true)}
+        />
       )}
       {tab === 'evidence' && <EvidencePanel comments={data.comments} sources={data.sources} onChange={setComments} onGoComments={() => setTab('comments')} />}
       {tab === 'review' && <ReviewPanel

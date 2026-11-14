@@ -114,7 +114,7 @@ def test_url_youtube_variants_call_collector(client, monkeypatch, url):
     cid = mk_case(client)
     r = client.post(f"/api/cases/{cid}/inputs/url", json={"url": url})
     assert r.status_code == 200
-    assert seen["args"] == ("dQw4w9WgXcQ", 200)
+    assert seen["args"] == ("dQw4w9WgXcQ", 10000)  # 기본 YOUTUBE_MAX_COMMENTS
     body = r.json()
     assert body["source"]["type"] == "youtube" and body["comments"][0]["platform"] == "youtube"
     assert body["comments"][0]["like_count"] == 3
