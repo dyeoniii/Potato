@@ -42,7 +42,7 @@ def wait_done(client, case_id, timeout=30):
     raise AssertionError("analyze-all did not finish")
 
 
-def test_batches_of_50_with_at_most_3_concurrent_and_results_saved(client, monkeypatch):
+def test_batches_of_15_with_at_most_2_concurrent_and_results_saved(client, monkeypatch):
     lock = threading.Lock()
     state = {"active": 0, "peak": 0, "sizes": []}
 
@@ -65,8 +65,8 @@ def test_batches_of_50_with_at_most_3_concurrent_and_results_saved(client, monke
     assert r.json()["total"] == 260
     s = wait_done(client, cid)
 
-    assert sorted(state["sizes"], reverse=True) == [50] * 5 + [10]
-    assert state["peak"] == 3
+    assert sorted(state["sizes"], reverse=True) == [15] * 17 + [5]
+    assert state["peak"] == 2
     assert s["total"] == 260 and s["analyzed"] == 260 and s["pending"] == 0 and s["failed"] == 0
     # 가상 줄 i % 3: 0=legal_review, 1=needs_context, 2=low_risk (260개: 87/87/86)
     assert s["counts"] == {"legal_review": 87, "needs_context": 87, "low_risk": 86}
