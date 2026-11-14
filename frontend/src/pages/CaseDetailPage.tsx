@@ -144,6 +144,7 @@ export default function CaseDetailPage() {
           status={analyzeAll.status}
           onChange={setComments}
           onGoInput={() => setTab('input')}
+          onReanalyze={() => void analyzeAll.start(true)}
         />
       )}
       {tab === 'evidence' && <EvidencePanel comments={data.comments} sources={data.sources} onChange={setComments} onGoComments={() => setTab('comments')} />}

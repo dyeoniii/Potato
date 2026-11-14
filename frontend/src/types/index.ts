@@ -20,6 +20,9 @@ export interface Analysis {
   reason: string;
   check_points: string[];
   disclaimer: string;
+  /** 참고용(AI 추정). 이전 판독 결과에는 없을 수 있음 */
+  statement_type?: string | null;
+  related_laws?: string[] | null;
 }
 
 export interface AnalysisResult extends Analysis {
@@ -80,6 +83,9 @@ export interface AnalyzeAllStatus {
   analyzed: number;
   pending: number;
   failed: number;
+  /** 가장 최근 실행의 대상 수·저장 수(다시 판독이면 이미 판독된 댓글 포함) */
+  run_total?: number;
+  run_done?: number;
   counts: Record<RiskLevel, number>;
   message: string | null;
   error: string | null;

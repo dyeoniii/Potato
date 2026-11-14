@@ -81,7 +81,7 @@ export const realApi: Api = {
   },
   analyze: (id, commentIds) =>
     json(`/cases/${encodeURIComponent(id)}/analyze`, jsonInit('POST', { comment_ids: commentIds })),
-  analyzeAll: (id) => json(`/cases/${encodeURIComponent(id)}/analyze-all`, { method: 'POST' }),
+  analyzeAll: (id, force) => json(`/cases/${encodeURIComponent(id)}/analyze-all${force ? '?force=true' : ''}`, { method: 'POST' }),
   analyzeAllStatus: (id) => json(`/cases/${encodeURIComponent(id)}/analyze-all/status`),
   patchComment: (commentId, patch) => json(`/comments/${encodeURIComponent(commentId)}`, jsonInit('PATCH', patch)),
   agentReview: (id) => json(`/cases/${encodeURIComponent(id)}/agent/review`, { method: 'POST' }),

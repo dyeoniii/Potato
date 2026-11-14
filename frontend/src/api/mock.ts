@@ -79,38 +79,51 @@ const makeComment = (sourceId: string, content: string, platform: string, extra:
   ...extra,
 });
 
-// 간단한 키워드 규칙. 실제 판독은 백엔드의 Gemini가 수행합니다.
+// 간단한 키워드 규칙(새 판독 기준 반영). 실제 판독은 백엔드의 Gemini가 수행합니다.
 function mockAnalysis(content: string): Analysis {
-  const strong = ['죽어', '죽여', '꺼져', '병신', '쓰레기'];
+  const threat = ['죽여', '죽인다', '가만 안 둔다', '찾아간다'];
+  const family = ['패드립', '니 애미', '느금'];
   const fact = ['사기꾼', '횡령', '불륜', '범죄자'];
+  const curse = ['병신', '쓰레기', '멍청', 'ㅅㅂ', 'ㅆㅂ', 'ㅂㅅ'];
   const hit = (words: string[]) => words.filter((w) => content.includes(w));
-  let level: Analysis['level'] = 'low_risk';
-  let issues: string[] = [];
-  let flagged: string[] = [];
-  let reason = '현재 자료에서는 뚜렷한 위험 신호가 보이지 않습니다. 합법을 뜻하지는 않습니다.';
-  let checks: string[] = [];
-  if (hit(strong).length) {
-    level = 'legal_review';
-    flagged = hit(strong);
-    issues = ['모욕'];
-    reason = '특정인을 향한 비하 표현으로 보일 수 있습니다. 대상 특정 여부와 공개 범위를 확인해야 합니다.';
-    checks = ['대상이 특정되는지 확인', '게시 공개 범위 확인'];
-  } else if (hit(fact).length) {
-    level = 'needs_context';
-    flagged = hit(fact);
-    issues = ['명예훼손(사실 적시)'];
-    reason = '사실을 적시한 표현일 수 있어 실제 문맥과 사실관계 확인이 필요합니다.';
-    checks = ['발언 대상이 특정되는지 확인', '사실 여부를 뒷받침할 자료 확인'];
-  }
-  return {
+  const base = { disclaimer: DISCLAIMER };
+  const make = (
+    level: Analysis['level'],
+    flagged: string[],
+    issues: string[],
+    reason: string,
+    checks: string[],
+    statement_type: string,
+    laws: string[],
+  ): Analysis => ({
+    ...base,
     level,
     level_label: LEVEL_LABEL[level],
     issues,
     flagged_phrases: flagged,
     reason: `[목 데이터] ${reason}`,
     check_points: checks,
-    disclaimer: DISCLAIMER,
-  };
+    statement_type,
+    related_laws: laws,
+  });
+  const askTarget = ['피해자가 특정되는지 확인', '게시 공개 범위 확인', '같은 작성자의 반복 여부 확인'];
+  if (hit(threat).length)
+    return make('legal_review', hit(threat), ['협박성 표현'], '해악을 알리는 표현으로 보일 수 있습니다.', askTarget, '해당 없음', ['형법 제283조(협박)']);
+  if (hit(family).length)
+    return make('legal_review', hit(family), ['모욕'], '가족을 비하하는 표현으로 보일 수 있습니다.', askTarget, '해당 없음', ['형법 제311조(모욕)']);
+  if (hit(fact).length)
+    return make(
+      'needs_context',
+      hit(fact),
+      ['명예훼손(사실 적시)'],
+      '사실을 적시한 표현일 수 있어 진위와 대상 특정 확인이 필요합니다.',
+      ['사실 여부를 뒷받침할 자료 확인', ...askTarget],
+      '사실 적시',
+      ['형법 제307조(명예훼손)', '정보통신망법 제70조(사이버 명예훼손)'],
+    );
+  if (hit(curse).length)
+    return make('low_risk', hit(curse), [], '단순 욕설·의견 표명으로 보여 위험 신호가 낮습니다. 합법을 뜻하지는 않습니다.', ['같은 작성자의 반복 여부 확인'], '의견 표명', []);
+  return make('low_risk', [], [], '현재 자료에서는 뚜렷한 위험 신호가 보이지 않습니다. 합법을 뜻하지는 않습니다.', [], '해당 없음', []);
 }
 
 function review(c: CaseDetail): ReviewResponse {
@@ -169,19 +182,27 @@ function ytId(url: string): string | null {
 }
 
 // 전체 자동 판독 시뮬레이션: 300ms마다 50개씩 처리. 메모리에만 있는 진행 상태.
-const mockJobs = new Map<string, boolean>();
+interface MockJob {
+  running: boolean;
+  total: number;
+  done: number;
+}
+const mockJobs = new Map<string, MockJob>();
 
 function mockStatus(c: CaseDetail): AnalyzeAllStatus {
   const counts = { legal_review: 0, needs_context: 0, low_risk: 0 };
   for (const cm of c.comments) if (cm.analysis) counts[cm.analysis.level] += 1;
   const analyzed = counts.legal_review + counts.needs_context + counts.low_risk;
+  const job = mockJobs.get(c.id);
   return {
     case_id: c.id,
-    running: mockJobs.get(c.id) === true,
+    running: job?.running === true,
     total: c.comments.length,
     analyzed,
     pending: c.comments.length - analyzed,
     failed: 0,
+    run_total: job?.total ?? 0,
+    run_done: job?.done ?? 0,
     counts,
     message: null,
     error: null,
@@ -271,16 +292,18 @@ export const mockApi: Api = {
     save();
     return wait({ results }, 600);
   },
-  async analyzeAll(caseId) {
+  async analyzeAll(caseId, force = false) {
     const c = findCase(caseId);
-    if (!mockJobs.get(caseId) && c.comments.some((x) => !x.analysis)) {
-      mockJobs.set(caseId, true);
+    const targets = c.comments.filter((x) => force || !x.analysis);
+    if (!mockJobs.get(caseId)?.running && targets.length) {
+      const job: MockJob = { running: true, total: targets.length, done: 0 };
+      mockJobs.set(caseId, job);
       const timer = setInterval(() => {
-        const pending = c.comments.filter((x) => !x.analysis).slice(0, 50);
-        for (const cm of pending) cm.analysis = mockAnalysis(cm.content);
-        if (c.comments.every((x) => x.analysis) || !db.cases.includes(c)) {
+        for (const cm of targets.slice(job.done, job.done + 50)) cm.analysis = mockAnalysis(cm.content);
+        job.done = Math.min(job.done + 50, job.total);
+        if (job.done >= job.total || !db.cases.includes(c)) {
           clearInterval(timer);
-          mockJobs.set(caseId, false);
+          job.running = false;
           save();
         }
       }, 300);

@@ -55,19 +55,22 @@ GET 상세 예시:
  "results":[{"comment_id":"cmt_1","level":"legal_review","level_label":"법적 검토 필요","issues":["모욕"],"flagged_phrases":["문제 표현 원문 일부"],"reason":"문맥을 고려한 설명 2~3문장입니다.","check_points":["대상 특정 여부"],"disclaimer":"AI 분석은 법률 자문이 아닙니다."}]
 }
 ```
+- 선택 필드(추가, 없어도 됨·이전 판독 결과는 `null`): `statement_type`(`의견 표명 | 사실 적시 | 허위사실 의심 | 해당 없음`)과 `related_laws`(관련될 수 있는 법조 이름, 최대 2개, `docs/analysis-criteria.md`의 목록에서만; `low_risk`는 빈 배열). **참고용 AI 추정**이며 처벌·성립을 뜻하지 않는다. 사건 상세의 `comments[].analysis`에도 같은 필드가 포함된다.
 - `legal_review | needs_context | low_risk` 중 하나; Gemini가 반환하더라도 서버에서 Pydantic 검증 및 재시도.
 - 원본 댓글 content는 판독 후 변경 금지. 사용자 확인은 법적 사실 확정이 아닌 '내용 확인' 표시.
 
 ### 전체 자동 판독 (`/analyze`와 별개, `/analyze`는 선택 판독용으로 그대로 유지)
 | Method | Path | 요청 / 응답 |
 |---|---|---|
-| POST | `/cases/{case_id}/analyze-all` | 본문 없음. 아직 판독되지 않은 댓글 전체를 백그라운드로 판독 시작 → `202` + 아래 상태 객체. 이미 실행 중이면 새로 시작하지 않고 현재 상태만 반환. 판독할 댓글이 없으면 `running:false`. |
+| POST | `/cases/{case_id}/analyze-all` | 본문 없음. 아직 판독되지 않은 댓글 전체를 백그라운드로 판독 시작 → `202` + 아래 상태 객체. 이미 실행 중이면 새로 시작하지 않고 현재 상태만 반환. 판독할 댓글이 없으면 `running:false`. 쿼리 `?force=true`: 이미 판독된 댓글도 다시 판독(새 판독 기준 적용). 새 결과가 저장되기 전까지 이전 결과는 유지되고, 실패해도 이전 결과가 남는다. |
 | GET | `/cases/{case_id}/analyze-all/status` | 현재 상태 객체 |
 ```json
 {"case_id":"case_1","running":true,"total":4000,"analyzed":1250,"pending":2750,"failed":0,
+ "run_total":2750,"run_done":0,
  "counts":{"legal_review":40,"needs_context":95,"low_risk":1115},
  "message":null,"error":null}
 ```
+- `run_total`/`run_done`: 가장 최근 실행의 대상 수와 결과가 저장된 수(진행률 표시용. `force` 실행은 이미 판독된 댓글이 포함되므로 `analyzed`가 아니라 이 값을 쓴다).
 - `total`: 사건의 전체 댓글 수, `analyzed`/`counts`: DB에 저장된 판독 결과 기준. 이미 판독된 댓글은 다시 판독하지 않는다.
 - 50개 단위 배치, 동시에 최대 3개 배치. 속도 제한(429)은 5·10·20·40·60·60초 대기 후 재시도하고, 그래도 안 되면 해당 배치만 `failed`로 센다. 다시 `POST`하면 판독 안 된 댓글만 다시 시도한다.
 - `message`: 대기·일부 실패 안내(예: "N개는 판독하지 못했습니다. 다시 실행하면 남은 댓글만 판독합니다."), `error`: 실행이 끝난 뒤 첫 실패 원인(AI 모듈 미연결·키 오류 등).

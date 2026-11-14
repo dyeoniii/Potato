@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -42,6 +42,23 @@ def init_db() -> None:
     from app import models  # noqa: F401  (Base.metadata 등록)
 
     Base.metadata.create_all(bind=engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns(eng=None) -> None:
+    """기존 DB 파일에 나중에 추가된 선택 컬럼을 붙인다(데이터는 그대로 유지)."""
+    wanted = {"analyses": {"statement_type": "VARCHAR(32)", "related_laws": "JSON"}}
+    eng = eng or engine
+    insp = inspect(eng)
+    tables = set(insp.get_table_names())
+    with eng.begin() as conn:
+        for table, columns in wanted.items():
+            if table not in tables:
+                continue
+            existing = {c["name"] for c in insp.get_columns(table)}
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
 
 
 def get_db() -> Iterator[Session]:

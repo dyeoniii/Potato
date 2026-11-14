@@ -25,14 +25,18 @@ def test_mock_contract_shape(mock_mode):
     assert [r["comment_id"] for r in out] == ["cmt_1", "cmt_2", "cmt_3", "cmt_4"]
     keys = {"comment_id", "level", "level_label", "issues", "flagged_phrases", "reason", "check_points", "disclaimer"}
     for r in out:
-        assert set(r) == keys
+        assert set(r) == keys | {"statement_type", "related_laws"}
         assert r["level"] in classify.LEVEL_LABELS
         assert r["level_label"] == classify.LEVEL_LABELS[r["level"]]
         assert r["disclaimer"] == "AI 분석은 법률 자문이 아닙니다."
         assert all(i in classify.ALLOWED_ISSUES for i in r["issues"])
     by = {r["comment_id"]: r for r in out}
     assert by["cmt_1"]["level"] == "needs_context" and by["cmt_1"]["flagged_phrases"] == ["사기꾼"]
-    assert by["cmt_2"]["level"] == "legal_review" and "모욕" in by["cmt_2"]["issues"]
+    # 새 기준: 단순 욕설은 의견 표명이므로 low_risk
+    assert by["cmt_2"]["level"] == "low_risk" and by["cmt_2"]["statement_type"] == "의견 표명"
+    assert by["cmt_2"]["related_laws"] == []
+    assert by["cmt_1"]["statement_type"] == "사실 적시"
+    assert by["cmt_1"]["related_laws"] == ["형법 제307조(명예훼손)", "정보통신망법 제70조(사이버 명예훼손)"]
     assert by["cmt_3"]["level"] == "low_risk"
     assert by["cmt_4"]["level"] == "legal_review" and "협박성 표현" in by["cmt_4"]["issues"]
 
@@ -169,3 +173,32 @@ def test_gemini_call_per_50_comments(monkeypatch, n, expected_calls):
     many = [{"id": f"cmt_{i}", "content": f"가상 댓글 {i}"} for i in range(n)]
     out = classify.analyze_comments(many)
     assert len(out) == n and len(sizes) == expected_calls and max(sizes) <= 50
+
+
+def test_statement_type_and_laws_are_sanitized(monkeypatch):
+    """모델이 허용 목록 밖 값·초과·low_risk 법조·단일 댓글 스토킹처벌법을 내놓아도 걸러낸다."""
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+
+    def fake(prompt, system_instruction, image_bytes, mime_type):
+        return json.dumps({"results": [
+            {"comment_id": "c1", "level": "legal_review", "reason": "가상", "statement_type": "유죄",
+             "related_laws": ["형법 제311조(모욕)", "형법 제999조(없는 법)", "스토킹처벌법", "형법 제283조", "형법 제307조(명예훼손)"]},
+            {"comment_id": "c2", "level": "low_risk", "reason": "가상", "statement_type": "의견 표명",
+             "related_laws": ["형법 제311조(모욕)"]},
+            {"comment_id": "c3", "level": "needs_context", "reason": "가상"},
+        ]})
+
+    monkeypatch.setattr(llm, "_call_gemini", fake)
+    out = classify.analyze_comments([{"id": f"x{i}", "content": f"가상 댓글 {i}"} for i in (1, 2, 3)])
+    assert out[0]["statement_type"] is None  # 허용 값이 아니면 비움
+    assert out[0]["related_laws"] == ["형법 제311조(모욕)", "형법 제283조(협박)"]  # 최대 2개, 목록 밖/스토킹 제외
+    assert out[1]["statement_type"] == "의견 표명" and out[1]["related_laws"] == []
+    assert out[2]["statement_type"] is None and out[2]["related_laws"] == []  # 필드 없어도 동작
+
+
+def test_system_instruction_has_criteria_and_safety_rules():
+    s = classify.SYSTEM_INSTRUCTION
+    for needle in ("의견 표명", "사실 적시", "애매하면 legal_review로 올리지 않는다", "사이버 렉카", "패드립",
+                   "욕설이 있어도 의견 표명이면 low_risk", "이전 지시 무시", "JSON만 출력", "법률 자문을 하지 않는다",
+                   "형법 제311조(모욕)", "statement_type", "related_laws"):
+        assert needle in s, needle

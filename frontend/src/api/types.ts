@@ -31,8 +31,8 @@ export interface Api {
   inputText(caseId: string, body: { text: string; source_url: string | null; context: string | null }): Promise<InputResponse>;
   inputImage(caseId: string, file: File, sourceUrl: string | null, context: string | null): Promise<InputResponse>;
   analyze(caseId: string, commentIds: string[]): Promise<{ results: AnalysisResult[] }>;
-  /** 판독 안 된 댓글 전체를 서버에서 백그라운드로 판독 시작(이미 실행 중이면 현재 상태 반환) */
-  analyzeAll(caseId: string): Promise<AnalyzeAllStatus>;
+  /** 판독 안 된 댓글 전체를 서버에서 백그라운드로 판독 시작(이미 실행 중이면 현재 상태 반환). force=true면 이미 판독된 댓글도 다시 판독 */
+  analyzeAll(caseId: string, force?: boolean): Promise<AnalyzeAllStatus>;
   analyzeAllStatus(caseId: string): Promise<AnalyzeAllStatus>;
   patchComment(commentId: string, patch: CommentPatch): Promise<CommentItem>;
   agentReview(caseId: string): Promise<ReviewResponse>;

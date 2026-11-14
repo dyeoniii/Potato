@@ -26,6 +26,8 @@ def save_analysis(comment: Comment, result: AnalysisResult, analyzed_at) -> None
         reason=result.reason,
         check_points=result.check_points,
         disclaimer=result.disclaimer,
+        statement_type=result.statement_type,
+        related_laws=result.related_laws,
         analyzed_at=analyzed_at,
     )
     if comment.analysis is None:

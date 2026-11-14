@@ -4,7 +4,7 @@ import { api } from '../api';
 import { errMessage } from '../lib/format';
 import type { Analysis, AnalysisResult, AnalyzeAllStatus, CommentItem, RiskLevel, Source } from '../types';
 import CommentCard from './CommentCard';
-import { Button, Disclaimer, EmptyState, ErrorBox, InfoBox, LevelBadge } from './common';
+import { Button, ConfirmModal, Disclaimer, EmptyState, ErrorBox, InfoBox, LevelBadge } from './common';
 
 const MAX_BATCH = 20;
 const PAGE = 30;
@@ -18,6 +18,8 @@ interface Props {
   status: AnalyzeAllStatus | null;
   onChange: (comments: CommentItem[]) => void;
   onGoInput: () => void;
+  /** 이미 판독된 댓글까지 새 기준으로 다시 판독 */
+  onReanalyze: () => void;
 }
 
 /** 많은 댓글을 한 번에 그리지 않도록 PAGE개씩 보여줍니다. */
@@ -47,7 +49,8 @@ function Group({ level, items, render }: { level: RiskLevel; items: CommentItem[
   );
 }
 
-export default function CommentsPanel({ caseId, comments, sources, analyzing, status, onChange, onGoInput }: Props) {
+export default function CommentsPanel({ caseId, comments, sources, analyzing, status, onChange, onGoInput, onReanalyze }: Props) {
+  const [confirmRe, setConfirmRe] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +157,15 @@ export default function CommentsPanel({ caseId, comments, sources, analyzing, st
             </p>
           </div>
 
+          {analyzedCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-ink-200 bg-white p-3">
+              <p className="text-xs text-ink-600">판독 기준이 바뀌었다면 이미 판독한 댓글도 다시 판독할 수 있습니다.</p>
+              <Button variant="ghost" className="min-h-10 px-3" disabled={analyzing} onClick={() => setConfirmRe(true)}>
+                새 기준으로 다시 판독
+              </Button>
+            </div>
+          )}
+
           {analyzedCount === 0 && !analyzing && (
             <InfoBox>
               {status?.running === false && pendingCount > 0
@@ -204,6 +216,22 @@ export default function CommentsPanel({ caseId, comments, sources, analyzing, st
       )}
       {!manualOpen && <ErrorBox message={error} onClose={() => setError(null)} />}
       <Disclaimer />
+      <ConfirmModal
+        open={confirmRe}
+        title="새 기준으로 다시 판독할까요?"
+        confirmLabel="다시 판독"
+        message={
+          <>
+            <p>댓글 {comments.length.toLocaleString()}개를 AI로 다시 판독합니다. 시간이 걸릴 수 있습니다.</p>
+            <p className="mt-1">새 결과가 저장되기 전까지 기존 판독 결과는 유지되며, 원문과 증거함·메모는 바뀌지 않습니다.</p>
+          </>
+        }
+        onConfirm={() => {
+          setConfirmRe(false);
+          onReanalyze();
+        }}
+        onCancel={() => setConfirmRe(false)}
+      />
     </div>
   );
 }

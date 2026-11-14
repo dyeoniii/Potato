@@ -48,6 +48,9 @@ class _Job:
     failed: int = 0
     error: str | None = None
     waiting: int = 0  # 429 대기 중인 배치 수
+    force: bool = False  # 이미 판독된 댓글도 다시 판독
+    run_total: int = 0  # 이번 실행의 대상 수
+    run_done: int = 0  # 이번 실행에서 저장된 수
     abort: bool = False
     lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -149,6 +152,7 @@ def _run(case_id: str, job: _Job, items: list[tuple[str, str, str | None]]) -> N
                         save_analysis(comments[r.comment_id], r, now)
                 db.commit()
                 saved = {r.comment_id for r in results if r.comment_id in comments}
+                job.run_done += len(saved)
                 job.failed += len([cid for cid, _, _ in batch if cid not in saved])
             except Exception as exc:
                 db.rollback()
@@ -174,10 +178,13 @@ def _status(db: Session, case_id: str) -> AnalyzeAllStatus:
     job = _jobs.get(case_id)
     running = bool(job and job.running)
     pending = max(total - analyzed, 0)
-    failed = min(job.failed, pending) if job else 0  # 이후 수동 판독 등으로 처리된 댓글은 제외
+    # 이후 수동 판독 등으로 처리된 댓글은 제외. 다시 판독(force) 실행은 이전 결과가 남아 있으므로 그대로 센다.
+    failed = (job.failed if job.force else min(job.failed, pending)) if job else 0
     message = None
     if job:
-        if running and job.waiting:
+        if not running and failed and job.force:
+            message = f"{failed:,}개는 다시 판독하지 못했습니다. 이전 판독 결과는 그대로 남아 있습니다."
+        elif running and job.waiting:
             message = "AI 사용량 제한으로 잠시 기다린 뒤 다시 시도하고 있습니다."
         elif not running and failed:
             message = f"{failed:,}개는 판독하지 못했습니다. 다시 실행하면 남은 댓글만 판독합니다."
@@ -188,6 +195,8 @@ def _status(db: Session, case_id: str) -> AnalyzeAllStatus:
         analyzed=analyzed,
         pending=pending,
         failed=failed,
+        run_total=job.run_total if job else 0,
+        run_done=job.run_done if job else 0,
         counts=counts,
         message=message,
         error=job.error if job and not running else None,
@@ -195,20 +204,26 @@ def _status(db: Session, case_id: str) -> AnalyzeAllStatus:
 
 
 @router.post("/cases/{case_id}/analyze-all", response_model=AnalyzeAllStatus, status_code=202)
-def analyze_all(case_id: str, db: Session = Depends(get_db)) -> AnalyzeAllStatus:
-    """아직 판독되지 않은 댓글 전체를 백그라운드로 판독한다. 이미 실행 중이면 현재 상태만 반환."""
+def analyze_all(case_id: str, force: bool = False, db: Session = Depends(get_db)) -> AnalyzeAllStatus:
+    """아직 판독되지 않은 댓글 전체를 백그라운드로 판독한다. 이미 실행 중이면 현재 상태만 반환.
+
+    ``force=true``면 이미 판독된 댓글도 다시 판독한다(새 판독 기준 적용). 새 결과가 저장될 때까지 이전 결과는 유지된다.
+    """
     get_case_or_404(db, case_id)
-    rows = db.execute(
+    query = (
         select(Comment.id, Comment.content, Source.context)
         .join(Source, Source.id == Comment.source_id)
-        .where(Comment.case_id == case_id, ~Comment.analysis.has())
+        .where(Comment.case_id == case_id)
         .order_by(Comment.seq)
-    ).all()
+    )
+    if not force:
+        query = query.where(~Comment.analysis.has())
+    rows = db.execute(query).all()
     items = [(cid, content, ctx) for cid, content, ctx in rows]
     with _jobs_lock:
         existing = _jobs.get(case_id)
         if items and not (existing and existing.running):
-            job = _Job(running=True)
+            job = _Job(running=True, force=force, run_total=len(items))
             _jobs[case_id] = job
             threading.Thread(target=_run, args=(case_id, job, items), name=f"analyze-all-{case_id}", daemon=True).start()
     return _status(db, case_id)

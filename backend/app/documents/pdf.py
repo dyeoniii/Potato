@@ -159,6 +159,21 @@ def _list_text(items: Any) -> str:
     return "\n".join(f"- {i}" for i in items)
 
 
+def _ref_text(analysis: Any) -> str:
+    """AI 판독의 참고용 필드(발언 유형·관련 법조). 값이 없으면 '미확인'. 항상 '참고' 표시를 붙인다."""
+    if not isinstance(analysis, dict):
+        return UNKNOWN
+    st = analysis.get("statement_type")
+    laws = analysis.get("related_laws")
+    if not st and not laws:
+        return UNKNOWN
+    lines = [f"[참고] 발언 유형: {st or UNKNOWN}"]
+    if laws:
+        lines.append("[참고] 관련될 수 있는 법조: " + ", ".join(str(x) for x in laws))
+        lines.append("(AI 추정이며 처벌·성립 여부를 뜻하지 않음)")
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------- statement
 def generate_statement_pdf(case_data: dict) -> bytes:
     """사건 경위서 PDF bytes. 저장된 증거가 없으면 DocumentDataError."""
@@ -195,7 +210,7 @@ def generate_statement_pdf(case_data: dict) -> bytes:
             [_p("출처 URL", st["cell"]), _p(url, st["cell"])],
             [_p("수집 시각", st["cell"]), _p(_kst(src.get("collected_at")), st["cell"])],
             [_p("사용자 확인", st["cell"]),
-             _p("내용 확인함 (법적 사실 확정 아님)" if c.get("user_confirmed") else "확인 표시 없음", st["cell"])],
+             _p("내용 확인함 (법적 사실 확정 아님)" if c.get("user_confirmed") else "확인 표시 없음 (사용자 확인 전)", st["cell"])],
             [_p("사용자 메모", st["cell"]), _p(c.get("user_note"), st["cell"])],
         ], [35 * mm, w - 35 * mm], header=False)]))
         story.append(Spacer(1, 3 * mm))
@@ -226,8 +241,8 @@ def generate_statement_pdf(case_data: dict) -> bytes:
         rows.append([
             _p(f"증거 {n}", st["cell"]),
             _p(a.get("level_label") or a.get("level"), st["cell"]),
-            _p("쟁점:\n" + _list_text(a.get("issues")) + "\n문제 표현:\n" + _list_text(a.get("flagged_phrases")),
-               st["cell"]),
+            _p("쟁점:\n" + _list_text(a.get("issues")) + "\n문제 표현:\n" + _list_text(a.get("flagged_phrases"))
+               + "\n" + _ref_text(a), st["cell"]),
             _p((a.get("reason") or UNKNOWN) + "\n확인할 점:\n" + _list_text(a.get("check_points")), st["cell"]),
         ])
     story.append(_grid(rows, [16 * mm, 28 * mm, 55 * mm, w - 99 * mm]))
@@ -249,8 +264,9 @@ def generate_evidence_list_pdf(case_data: dict) -> bytes:
                    Spacer(1, 2 * mm),
                    _p(f"※ {DISCLAIMER} 값이 없는 항목은 '미확인'이며, 원문은 수정 없이 기재했습니다.", st["note"]),
                    Spacer(1, 3 * mm)]
-    heads = ["번호", "작성자", "댓글 원문", "작성 시각", "출처 URL", "수집 시각", "SHA-256 (원본 파일)"]
-    widths = [10 * mm, 24 * mm, w * 0.27, 26 * mm, w * 0.2, 26 * mm, 0]
+    heads = ["번호", "작성자", "댓글 원문", "작성 시각", "출처 URL", "수집 시각", "SHA-256 (원본 파일)",
+             "AI 참고 (추정)"]
+    widths = [9 * mm, 22 * mm, w * 0.22, 24 * mm, w * 0.14, 24 * mm, w * 0.12, 0]
     widths[-1] = w - sum(widths[:-1])
     rows = [[_p(h, st["cellh"]) for h in heads]]
     for n, c in enumerate(saved, 1):
@@ -263,6 +279,7 @@ def generate_evidence_list_pdf(case_data: dict) -> bytes:
             _p(c.get("comment_url") or src.get("url"), st["cell"]),
             _p(_kst(src.get("collected_at")), st["cell"]),
             _p(src.get("file_sha256"), st["cell"]),
+            _p(_ref_text(c.get("analysis")), st["cell"]),
         ])
     story.append(_grid(rows, widths))
     story.append(Spacer(1, 3 * mm))

@@ -69,10 +69,10 @@ export function useAnalyzeAll(caseId: string, onRefresh: () => Promise<void> | v
     };
   }, [polling, caseId]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (force = false) => {
     setError(null);
     try {
-      const s = await api.analyzeAll(caseId);
+      const s = await api.analyzeAll(caseId, force);
       setStatus(s);
       if (s.running) setPolling(true);
       else await refreshRef.current();

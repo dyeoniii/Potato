@@ -68,6 +68,10 @@ class CaseSummary(BaseModel):
 
 
 # ---------- 분석 ----------
+STATEMENT_TYPES = ("의견 표명", "사실 적시", "허위사실 의심", "해당 없음")
+MAX_RELATED_LAWS = 2
+
+
 class AnalysisBrief(ORMModel):
     level: Level
     level_label: str
@@ -76,6 +80,9 @@ class AnalysisBrief(ORMModel):
     reason: str
     check_points: list[str]
     disclaimer: str
+    # 선택·참고용. 이전에 판독한 댓글에는 null.
+    statement_type: str | None = None
+    related_laws: list[str] | None = None
 
 
 class AnalysisResult(BaseModel):
@@ -91,6 +98,22 @@ class AnalysisResult(BaseModel):
     reason: str = ""
     check_points: list[str] = Field(default_factory=list)
     disclaimer: str = DISCLAIMER
+    statement_type: str | None = None
+    related_laws: list[str] | None = None
+
+    @field_validator("statement_type", mode="before")
+    @classmethod
+    def _known_statement_type(cls, v):
+        return v if isinstance(v, str) and v.strip() in STATEMENT_TYPES else None
+
+    @field_validator("related_laws", mode="before")
+    @classmethod
+    def _laws_list(cls, v):
+        if v is None:
+            return None
+        if not isinstance(v, list):
+            return None
+        return [x.strip() for x in v if isinstance(x, str) and x.strip()][:MAX_RELATED_LAWS]
 
     @model_validator(mode="after")
     def _normalize(self) -> "AnalysisResult":
@@ -128,6 +151,8 @@ class AnalyzeAllStatus(BaseModel):
     analyzed: int
     pending: int
     failed: int = 0  # 이번 실행에서 판독하지 못한 댓글 수(다시 실행하면 재시도)
+    run_total: int = 0  # 가장 최근 실행의 대상 수(force 실행이면 이미 판독된 댓글 포함)
+    run_done: int = 0  # 가장 최근 실행에서 결과가 저장된 수
     counts: LevelCounts
     message: str | None = None  # 속도 제한 대기·실패 안내
     error: str | None = None

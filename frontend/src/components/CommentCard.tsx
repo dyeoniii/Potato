@@ -99,6 +99,29 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
               <p className="font-medium">{a.flagged_phrases.map((p) => `“${p}”`).join(', ')}</p>
             </Section>
           )}
+          {(a.statement_type || (a.related_laws?.length ?? 0) > 0) && (
+            <div className="rounded-xl border border-dashed border-ink-300 bg-white p-3.5 text-xs">
+              <p className="font-bold text-ink-700">참고 (AI 추정)</p>
+              {a.statement_type && (
+                <p className="mt-1 text-sm">
+                  발언 유형: <b>{a.statement_type}</b>
+                </p>
+              )}
+              {(a.related_laws?.length ?? 0) > 0 && (
+                <div className="mt-1">
+                  <p className="text-sm">관련될 수 있는 법조</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {a.related_laws?.map((l) => (
+                      <span key={l} className="rounded-lg border border-ink-200 bg-ink-50 px-2.5 py-1 text-xs font-semibold text-ink-800">
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 text-ink-600">참고용 분류이며 처벌이나 고소 성립 여부를 뜻하지 않습니다.</p>
+            </div>
+          )}
           <div className="rounded-xl border border-ink-200 bg-white p-3.5">
             <p className="text-xs font-bold text-ink-700">판단 근거</p>
             <p className="mt-1 leading-relaxed">{a.reason}</p>
