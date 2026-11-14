@@ -27,6 +27,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -108,14 +109,14 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
   }
 
   const tabs: { key: Mode; label: string }[] = [
-    { key: 'url', label: 'URL' },
     { key: 'text', label: '텍스트' },
     { key: 'image', label: '스크린샷' },
+    { key: 'url', label: 'SNS URL' },
   ];
 
   return (
     <Card className="space-y-3">
-      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-2xl bg-ink-100 p-1">
+      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-2xl bg-brand-50 p-1">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -126,7 +127,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
               setMode(t.key);
               setError(null);
             }}
-            className={`min-h-11 rounded-xl text-sm font-semibold ${mode === t.key ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-600 hover:text-ink-900'}`}
+            className={`min-h-11 rounded-xl text-sm font-semibold ${mode === t.key ? 'bg-brand-700 text-white' : 'text-ink-700 hover:bg-brand-100'}`}
           >
             {t.label}
           </button>
@@ -134,8 +135,8 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
       </div>
 
       {mode === 'url' && (
-        <div className="space-y-3">
-          <label className="block text-sm font-medium">
+        <div className="space-y-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4">
+          <label className="block text-sm font-semibold">
             게시물 주소
             <input
               className={`${inputCls} mt-1`}
@@ -170,10 +171,25 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
       {mode === 'image' && (
         <div className="space-y-3">
           <div>
-            <p className="text-sm font-medium">댓글 스크린샷 (png/jpg/webp, 10MB 이하)</p>
-            <label className="mt-1 flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 px-4 py-6 text-center text-sm text-ink-600 hover:border-brand-400">
+            <p className="text-sm font-semibold">댓글 스크린샷</p>
+            <label
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                pickFile(e.dataTransfer.files?.[0] ?? null);
+              }}
+              className={`mt-1 flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 border-dashed px-4 py-8 text-center text-sm text-ink-700 transition-colors ${
+                dragging ? 'border-brand-600 bg-brand-100' : 'border-brand-300 bg-brand-50 hover:border-brand-500'
+              }`}
+            >
               <ImagePlus className="h-6 w-6 text-brand-600" aria-hidden />
-              <span className="font-semibold">{file ? '다른 이미지 선택' : '이미지 선택'}</span>
+              <span className="font-bold text-brand-800">{file ? '다른 이미지 선택' : '이미지를 끌어다 놓거나 눌러서 선택'}</span>
+              <span className="text-xs text-ink-600">png, jpg, jpeg, webp · 10MB 이하</span>
               <input
                 ref={fileRef}
                 type="file"
@@ -186,14 +202,14 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
           {file && preview && (
             <div className="flex items-start gap-3 rounded-2xl border border-ink-200 p-2">
               <img src={preview} alt="선택한 스크린샷 미리보기" className="h-24 w-24 shrink-0 rounded-xl bg-ink-50 object-contain" />
-              <div className="min-w-0 flex-1 text-xs text-ink-500">
+              <div className="min-w-0 flex-1 text-xs text-ink-600">
                 <p className="break-all font-medium text-ink-900">{file.name}</p>
                 <p>{(file.size / 1024).toFixed(0)}KB</p>
               </div>
               <button
                 type="button"
                 aria-label="선택한 이미지 지우기"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-500 hover:bg-ink-100"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-600 hover:bg-ink-100"
                 onClick={() => {
                   setFile(null);
                   if (fileRef.current) fileRef.current.value = '';

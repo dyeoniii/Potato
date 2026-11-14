@@ -7,7 +7,7 @@ import DocumentsPanel from '../components/DocumentsPanel';
 import EvidencePanel from '../components/EvidencePanel';
 import InputPanel from '../components/InputPanel';
 import ReviewPanel from '../components/ReviewPanel';
-import { Button, ConfirmModal, ErrorBox, InfoBox, LoadingBlock } from '../components/common';
+import { Button, Card, ConfirmModal, ErrorBox, InfoBox, LoadingBlock } from '../components/common';
 import { errMessage, formatKst } from '../lib/format';
 import type { CaseDetail, CommentItem, InputResponse } from '../types';
 
@@ -80,16 +80,16 @@ export default function CaseDetailPage() {
 
   return (
     <div className="space-y-5">
-      <div className="space-y-2">
-        <Link to="/cases" className="inline-flex items-center text-sm font-semibold text-brand-600">
+      <Card className="space-y-2">
+        <Link to="/cases" className="inline-flex items-center text-sm font-semibold text-brand-700">
           <ChevronLeft className="h-4 w-4" aria-hidden />
           사건 목록
         </Link>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="break-words text-xl font-bold sm:text-2xl">{data.title}</h1>
+            <h1 className="break-words text-2xl font-extrabold">{data.title}</h1>
             {data.description && <p className="mt-1 text-sm text-ink-600">{data.description}</p>}
-            <p className="mt-1 text-xs text-ink-500">
+            <p className="mt-1 text-xs text-ink-600">
               {formatKst(data.created_at)} · 댓글 {data.comments.length}개 · 증거 {savedCount}건
             </p>
           </div>
@@ -99,9 +99,9 @@ export default function CaseDetailPage() {
           </Button>
         </div>
         <ErrorBox message={error} onClose={() => setError(null)} />
-      </div>
+      </Card>
 
-      <nav role="tablist" aria-label="사건 메뉴" className="grid grid-cols-5 gap-1 rounded-2xl bg-ink-100 p-1">
+      <nav role="tablist" aria-label="사건 메뉴" className="grid grid-cols-5 gap-1 rounded-2xl border border-brand-100 bg-white p-1.5 shadow-card">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -110,12 +110,12 @@ export default function CaseDetailPage() {
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
             className={`flex min-h-11 items-center justify-center gap-1 rounded-xl text-sm font-semibold ${
-              tab === t.key ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-600 hover:text-ink-900'
+              tab === t.key ? 'bg-brand-700 text-white' : 'text-ink-700 hover:bg-brand-50'
             }`}
           >
             {t.label}
             {t.badge !== undefined && t.badge > 0 && (
-              <span className={`rounded-full px-1.5 text-xs ${tab === t.key ? 'bg-brand-100 text-brand-700' : 'bg-ink-200 text-ink-600'}`}>{t.badge}</span>
+              <span className={`rounded-full px-1.5 text-xs ${tab === t.key ? 'bg-white/25 text-white' : 'bg-ink-100 text-ink-700'}`}>{t.badge}</span>
             )}
           </button>
         ))}

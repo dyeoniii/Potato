@@ -1,34 +1,23 @@
 import { FolderOpen, Plus, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
-import { Button, Card, ConfirmModal, Disclaimer, EmptyState, ErrorBox, LoadingBlock, PageHeader, inputCls } from '../components/common';
+import { Button, Card, ConfirmModal, Disclaimer, EmptyState, ErrorBox, LoadingBlock, PageHeader, SectionTitle, inputCls } from '../components/common';
 import { errMessage, formatKst } from '../lib/format';
+import { useCaseDetails } from '../lib/useCaseDetails';
 import type { CaseSummary } from '../types';
 
 export default function CasesPage() {
-  const [cases, setCases] = useState<CaseSummary[] | null>(null);
+  const { summaries: cases, details, error: listError, reload } = useCaseDetails(50);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
   const [target, setTarget] = useState<CaseSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    setListError(null);
-    try {
-      setCases(await api.listCases());
-    } catch (e) {
-      setListError(errMessage(e));
-      setCases([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const detailById = new Map(details.map((d) => [d.id, d]));
+  const sorted = cases ? [...cases].sort((a, b) => b.created_at.localeCompare(a.created_at)) : null;
 
   async function create() {
     if (!title.trim()) return setError('사건 제목을 입력해 주세요.');
@@ -38,7 +27,7 @@ export default function CasesPage() {
       await api.createCase({ title: title.trim(), description: description.trim() });
       setTitle('');
       setDescription('');
-      await load();
+      await reload();
     } catch (e) {
       setError(errMessage(e));
     } finally {
@@ -52,7 +41,7 @@ export default function CasesPage() {
     try {
       await api.deleteCase(target.id);
       setTarget(null);
-      await load();
+      await reload();
     } catch (e) {
       setTarget(null);
       setError(errMessage(e));
@@ -62,45 +51,66 @@ export default function CasesPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <PageHeader title="내 사건" desc="사건마다 댓글, 판독 결과, 증거를 따로 보관합니다." />
+    <div className="space-y-6">
+      <PageHeader title="내 사건 관리" desc="사건마다 댓글, 판독 결과, 증거를 따로 보관합니다." />
 
-      <Card className="space-y-3">
-        <h2 className="font-semibold">새 사건 만들기</h2>
-        <input className={inputCls} placeholder="사건 제목" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="사건 제목" />
-        <textarea className={`${inputCls} min-h-20`} placeholder="사건 설명 (선택)" value={description} onChange={(e) => setDescription(e.target.value)} aria-label="사건 설명" />
-        <Button className="w-full sm:w-auto" busy={busy} busyLabel="만드는 중…" onClick={() => void create()}>
+      <Card className="space-y-4">
+        <SectionTitle>새 사건 만들기</SectionTitle>
+        <div className="grid gap-3">
+          <label className="block text-sm font-semibold text-ink-800">
+            사건 제목
+            <input className={`${inputCls} mt-1.5 font-normal`} placeholder="예: 게시물 A 비방 댓글" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </label>
+          <label className="block text-sm font-semibold text-ink-800">
+            사건 설명 (선택)
+            <textarea className={`${inputCls} mt-1.5 min-h-20 font-normal`} placeholder="어떤 일이 있었는지 간단히 적어 주세요" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </label>
+        </div>
+        <Button className="w-full bg-brand-700 hover:bg-brand-800 sm:w-auto" busy={busy} busyLabel="만드는 중…" onClick={() => void create()}>
           <Plus className="h-4 w-4" aria-hidden />
           사건 만들기
         </Button>
         <ErrorBox message={error} onClose={() => setError(null)} />
       </Card>
 
-      <section className="space-y-2">
-        <h2 className="font-semibold">사건 목록</h2>
-        <ErrorBox message={listError} onRetry={() => void load()} />
+      <section className="space-y-3">
+        <SectionTitle>사건 목록 {sorted && <span className="text-sm font-medium text-ink-600">({sorted.length})</span>}</SectionTitle>
+        <ErrorBox message={listError} onRetry={() => void reload()} />
         {cases === null && <LoadingBlock />}
-        {cases?.length === 0 && !listError && (
+        {sorted?.length === 0 && !listError && (
           <EmptyState icon={<FolderOpen className="h-5 w-5" aria-hidden />} title="아직 사건이 없습니다" desc="위에서 첫 사건을 만들어 보세요." />
         )}
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {cases?.map((c) => (
-            <li key={c.id} className="flex items-stretch gap-2 rounded-2xl border border-ink-200 bg-white p-3 shadow-sm">
-              <Link to={`/cases/${c.id}`} className="min-w-0 flex-1 rounded-xl p-1 hover:bg-ink-50">
-                <p className="truncate font-medium">{c.title}</p>
-                <p className="mt-0.5 text-xs text-ink-500">{formatKst(c.created_at)}</p>
-                <span className="mt-2 inline-block rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700">증거 {c.saved_count}건</span>
-              </Link>
-              <button
-                type="button"
-                onClick={() => setTarget(c)}
-                aria-label={`${c.title} 삭제`}
-                className="flex h-11 w-11 shrink-0 items-center justify-center self-start rounded-xl text-ink-500 hover:bg-red-50 hover:text-red-600"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden />
-              </button>
-            </li>
-          ))}
+        <ul className="grid gap-4 md:grid-cols-2">
+          {sorted?.map((c) => {
+            const d = detailById.get(c.id);
+            return (
+              <li key={c.id}>
+                <Card className="flex h-full flex-col gap-3 !p-4">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-base font-bold">{c.title}</h3>
+                    <p className="mt-1 line-clamp-2 min-h-10 text-sm text-ink-600">{d ? d.description || '설명이 없습니다.' : '\u00a0'}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
+                    <span className="rounded-full bg-brand-100 px-2.5 py-1 text-brand-800">증거 {c.saved_count}건</span>
+                    {d && <span className="rounded-full bg-ink-100 px-2.5 py-1 text-ink-700">댓글 {d.comments.length}개</span>}
+                  </div>
+                  <p className="text-xs text-ink-600">생성 {formatKst(c.created_at)}</p>
+                  <div className="mt-auto flex gap-2 pt-1">
+                    <Link
+                      to={`/cases/${c.id}`}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-brand-700 text-sm font-semibold text-white hover:bg-brand-800"
+                    >
+                      상세 보기
+                    </Link>
+                    <Button variant="danger" onClick={() => setTarget(c)} aria-label={`${c.title} 삭제`}>
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                      삭제
+                    </Button>
+                  </div>
+                </Card>
+              </li>
+            );
+          })}
         </ul>
       </section>
       <Disclaimer />

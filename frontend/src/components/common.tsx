@@ -18,7 +18,7 @@ export function LevelBadge({ level, label }: { level: RiskLevel; label?: string 
 
 export function Disclaimer({ className = '' }: { className?: string }) {
   return (
-    <p className={`text-xs leading-relaxed text-ink-500 ${className}`}>
+    <p className={`text-xs leading-relaxed text-ink-600 ${className}`}>
       ⚖️ {DISCLAIMER} 고소 가능 여부나 결과를 보장하지 않습니다.
     </p>
   );
@@ -59,8 +59,8 @@ export function Button({ variant = 'primary', busy, busyLabel = '처리 중…',
   const base =
     'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50';
   const v = {
-    primary: 'bg-brand-600 text-white hover:bg-brand-700',
-    ghost: 'border border-ink-200 bg-white text-ink-700 hover:bg-ink-50',
+    primary: 'bg-brand-700 text-white hover:bg-brand-800',
+    ghost: 'border border-ink-300 bg-white text-ink-800 hover:bg-ink-50',
     danger: 'border border-red-200 bg-white text-red-600 hover:bg-red-50',
   }[variant];
   return (
@@ -72,18 +72,18 @@ export function Button({ variant = 'primary', busy, busyLabel = '처리 중…',
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-brand-100 bg-white shadow-card p-4 sm:p-5 ${className}`}>{children}</section>;
 }
 
 export const inputCls =
-  'w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
+  'w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
 
 export function PageHeader({ title, desc, action }: { title: string; desc?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">{title}</h1>
-        {desc && <p className="mt-1 text-sm text-ink-500">{desc}</p>}
+        <h1 className="text-2xl font-extrabold text-ink-900">{title}</h1>
+        {desc && <p className="mt-1 text-sm text-ink-600">{desc}</p>}
       </div>
       {action}
     </div>
@@ -92,17 +92,17 @@ export function PageHeader({ title, desc, action }: { title: string; desc?: stri
 
 export function EmptyState({ icon, title, desc, action }: { icon?: ReactNode; title: string; desc?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ink-300 bg-white px-4 py-10 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-brand-300 bg-white px-4 py-10 text-center">
       {icon && <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600">{icon}</div>}
       <p className="font-semibold text-ink-900">{title}</p>
-      {desc && <p className="max-w-sm text-sm text-ink-500">{desc}</p>}
+      {desc && <p className="max-w-sm text-sm text-ink-600">{desc}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }
 
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div aria-hidden className={`animate-pulse rounded-xl bg-ink-100 ${className}`} />;
+  return <div aria-hidden className={`animate-pulse rounded-2xl bg-white/80 ${className}`} />;
 }
 
 export function LoadingBlock({ label = '불러오는 중…' }: { label?: string }) {
@@ -175,6 +175,15 @@ export function ConfirmModal({ open, title, message, confirmLabel = '삭제', bu
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="text-base font-bold text-ink-900">{children}</h2>
+      {action}
     </div>
   );
 }
