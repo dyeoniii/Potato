@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { ImagePlus, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { errMessage } from '../lib/format';
 import { isHttpUrl } from '../lib/share';
@@ -25,6 +26,18 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!file) {
+      setPreview(null);
+      return;
+    }
+    const u = URL.createObjectURL(file);
+    setPreview(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
 
   useEffect(() => {
     if (initialUrl) {
@@ -77,6 +90,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
     if (!f) return setFile(null);
     if (!ALLOWED.test(f.name)) return setError('png, jpg, jpeg, webp 파일만 올릴 수 있습니다.');
     if (f.size > MAX_BYTES) return setError('파일 크기는 10MB 이하여야 합니다.');
+    setNotice(null);
     setFile(f);
   }
 
@@ -86,7 +100,10 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
     if (su && !isHttpUrl(su)) return setError('원본 게시글 주소 형식이 올바르지 않습니다.');
     void run(
       () => api.inputImage(caseId, file, su || null, context.trim() || null),
-      () => setFile(null),
+      () => {
+        setFile(null);
+        if (fileRef.current) fileRef.current.value = '';
+      },
     );
   }
 
@@ -98,7 +115,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
 
   return (
     <Card className="space-y-3">
-      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1">
+      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-2xl bg-ink-100 p-1">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -109,7 +126,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
               setMode(t.key);
               setError(null);
             }}
-            className={`min-h-10 rounded-md text-sm font-semibold ${mode === t.key ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'}`}
+            className={`min-h-11 rounded-xl text-sm font-semibold ${mode === t.key ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-600 hover:text-ink-900'}`}
           >
             {t.label}
           </button>
@@ -131,7 +148,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
           <InfoBox>
             YouTube 주소는 공개 댓글을 최대 200개까지 가져옵니다. 그 밖의 SNS는 주소만 출처로 저장하고 댓글은 직접 입력해야 합니다.
           </InfoBox>
-          <Button className="w-full" busy={busy} onClick={submitUrl}>
+          <Button className="w-full" busy={busy} busyLabel="댓글 가져오는 중…" onClick={submitUrl}>
             댓글 가져오기
           </Button>
         </div>
@@ -144,7 +161,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
             <textarea className={`${inputCls} mt-1 min-h-32`} value={text} onChange={(e) => setText(e.target.value)} placeholder="댓글을 붙여넣어 주세요" />
           </label>
           <SourceFields sourceUrl={sourceUrl} setSourceUrl={setSourceUrl} context={context} setContext={setContext} />
-          <Button className="w-full" busy={busy} onClick={submitText}>
+          <Button className="w-full" busy={busy} busyLabel="추가하는 중…" onClick={submitText}>
             댓글 추가
           </Button>
         </div>
@@ -152,21 +169,45 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
 
       {mode === 'image' && (
         <div className="space-y-3">
-          <label className="block text-sm font-medium">
-            댓글 스크린샷 (png/jpg/webp, 10MB 이하)
-            <input
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
-              className="mt-1 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2.5 file:font-semibold file:text-indigo-700"
-              onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          {file && <p className="text-xs text-slate-500">선택됨: {file.name} ({(file.size / 1024).toFixed(0)}KB)</p>}
+          <div>
+            <p className="text-sm font-medium">댓글 스크린샷 (png/jpg/webp, 10MB 이하)</p>
+            <label className="mt-1 flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-ink-300 bg-ink-50 px-4 py-6 text-center text-sm text-ink-600 hover:border-brand-400">
+              <ImagePlus className="h-6 w-6 text-brand-600" aria-hidden />
+              <span className="font-semibold">{file ? '다른 이미지 선택' : '이미지 선택'}</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                className="sr-only"
+                onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
+          {file && preview && (
+            <div className="flex items-start gap-3 rounded-2xl border border-ink-200 p-2">
+              <img src={preview} alt="선택한 스크린샷 미리보기" className="h-24 w-24 shrink-0 rounded-xl bg-ink-50 object-contain" />
+              <div className="min-w-0 flex-1 text-xs text-ink-500">
+                <p className="break-all font-medium text-ink-900">{file.name}</p>
+                <p>{(file.size / 1024).toFixed(0)}KB</p>
+              </div>
+              <button
+                type="button"
+                aria-label="선택한 이미지 지우기"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-500 hover:bg-ink-100"
+                onClick={() => {
+                  setFile(null);
+                  if (fileRef.current) fileRef.current.value = '';
+                }}
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          )}
           <SourceFields sourceUrl={sourceUrl} setSourceUrl={setSourceUrl} context={context} setContext={setContext} />
           <InfoBox tone="warn">
             AI가 읽은 작성자·시각은 틀릴 수 있습니다. 읽지 못한 값은 비워 두며, 저장 전에 원본과 비교해 확인해 주세요. 원본 이미지는 서버로 전송됩니다.
           </InfoBox>
-          <Button className="w-full" busy={busy} onClick={submitImage}>
+          <Button className="w-full" busy={busy} busyLabel="댓글 추출 중…" disabled={!file} onClick={submitImage}>
             댓글 추출
           </Button>
         </div>
