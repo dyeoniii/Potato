@@ -127,7 +127,8 @@ export default function CommentsPanel({ caseId, comments, sources, onChange, onG
 
       <ErrorBox message={error} onClose={() => setError(null)} />
 
-      <ul className="space-y-3">
+      {comments.length > 0 && (
+      <ul className="panel">
         {comments.map((c) => (
           <CommentCard
             key={c.id}
@@ -140,6 +141,7 @@ export default function CommentsPanel({ caseId, comments, sources, onChange, onG
           />
         ))}
       </ul>
+      )}
       <Disclaimer />
     </div>
   );

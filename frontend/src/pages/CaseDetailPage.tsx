@@ -1,15 +1,16 @@
 import { ChevronLeft, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import CommentsPanel from '../components/CommentsPanel';
 import DocumentsPanel from '../components/DocumentsPanel';
 import EvidencePanel from '../components/EvidencePanel';
 import InputPanel from '../components/InputPanel';
 import ReviewPanel from '../components/ReviewPanel';
-import { Button, Card, ConfirmModal, ErrorBox, InfoBox, LoadingBlock, TabBar, type TabItem } from '../components/common';
+import { Button, Card, ConfirmModal, ErrorBox, InfoBox, LevelBadge, LoadingBlock, Panel, StatusBadge, TabBar, type TabItem } from '../components/common';
 import { errMessage, formatKst } from '../lib/format';
-import type { CaseDetail, CommentItem, InputResponse } from '../types';
+import { caseStatus } from '../lib/status';
+import { LEVEL_LABEL, type CaseDetail, type CommentItem, type InputResponse, type RiskLevel } from '../types';
 
 type Tab = 'input' | 'comments' | 'evidence' | 'review' | 'docs';
 
@@ -18,7 +19,9 @@ export default function CaseDetailPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const sharedUrl = (location.state as { sharedUrl?: string } | null)?.sharedUrl ?? '';
-  const [tab, setTab] = useState<Tab>('input');
+  const [search] = useSearchParams();
+  const initialTab = (['input', 'comments', 'evidence', 'review', 'docs'] as Tab[]).find((t) => t === search.get('tab')) ?? 'input';
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [data, setData] = useState<CaseDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -70,6 +73,8 @@ export default function CaseDetailPage() {
   if (!data) return <LoadingBlock />;
 
   const savedCount = data.comments.filter((c) => c.saved).length;
+  const analyzedList = data.comments.filter((c) => c.analysis);
+  const status = caseStatus(data);
   const tabs: TabItem<Tab>[] = [
     { key: 'input', label: '입력' },
     { key: 'comments', label: '판독', count: data.comments.length },
@@ -101,6 +106,8 @@ export default function CaseDetailPage() {
         <ErrorBox message={error} onClose={() => setError(null)} />
       </Card>
 
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-5">
       <TabBar label="사건 메뉴" items={tabs} value={tab} onChange={setTab} />
 
       {tab === 'input' && (
@@ -121,6 +128,49 @@ export default function CaseDetailPage() {
           }
         />}
       {tab === 'docs' && <DocumentsPanel caseId={data.id} savedCount={savedCount} />}
+        </div>
+
+        <aside className="hidden space-y-5 xl:block" aria-label="사건 요약">
+          <Panel title="사건 요약">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-ink-600">상태</dt>
+              <dd className="text-right">
+                <StatusBadge badge={status.badge} label={status.label} />
+              </dd>
+              <dt className="text-ink-600">생성일</dt>
+              <dd className="text-right">{formatKst(data.created_at)}</dd>
+              <dt className="text-ink-600">댓글</dt>
+              <dd className="text-right font-semibold">{data.comments.length}개</dd>
+              <dt className="text-ink-600">판독 완료</dt>
+              <dd className="text-right font-semibold">{analyzedList.length}개</dd>
+              <dt className="text-ink-600">저장한 증거</dt>
+              <dd className="text-right font-semibold">{savedCount}건</dd>
+              <dt className="text-ink-600">내용 확인</dt>
+              <dd className="text-right font-semibold">{data.comments.filter((c) => c.saved && c.user_confirmed).length}건</dd>
+              <dt className="text-ink-600">보완 답변</dt>
+              <dd className="text-right font-semibold">{data.answers.length}건</dd>
+            </dl>
+          </Panel>
+          {analyzedList.length > 0 && (
+            <Panel title="판독 결과 분포">
+              <ul className="space-y-2 text-sm">
+                {(['legal_review', 'needs_context', 'low_risk'] as RiskLevel[]).map((lv) => (
+                  <li key={lv} className="flex items-center justify-between">
+                    <LevelBadge level={lv} label={LEVEL_LABEL[lv]} />
+                    <span className="font-bold">{analyzedList.filter((c) => c.analysis?.level === lv).length}</span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+          <Panel title="문서">
+            <Button variant="ghost" className="w-full" onClick={() => setTab('docs')}>
+              문서 센터 열기
+            </Button>
+            <p className="mt-2 text-xs text-ink-600">사건 경위서와 증거자료 목록 PDF를 받을 수 있어요.</p>
+          </Panel>
+        </aside>
+      </div>
 
       <ConfirmModal
         open={confirmDelete}

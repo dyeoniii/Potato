@@ -203,3 +203,35 @@ export function ConfirmModal({ open, title, message, confirmLabel = '삭제', bu
     </div>
   );
 }
+
+/** 표·목록용 패널. 제목 줄(panel-head)과 본문을 한 덩어리로 보여 줍니다. */
+export function Panel({ title, action, children, flush }: { title?: ReactNode; action?: ReactNode; children: ReactNode; flush?: boolean }) {
+  return (
+    <section className="panel">
+      {(title || action) && (
+        <div className="panel-head">
+          <h2>{title}</h2>
+          {action}
+        </div>
+      )}
+      <div className={flush ? '' : 'panel-body'}>{children}</div>
+    </section>
+  );
+}
+
+export function KpiCard({ icon, label, value, note }: { icon: ReactNode; label: string; value: number | null; note: string }) {
+  return (
+    <Card compact>
+      <div className="kpi-label">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-700">{icon}</span>
+        {label}
+      </div>
+      {value === null ? <div className="mt-2 h-8 w-12 animate-pulse rounded-lg bg-ink-100" aria-label="불러오는 중" /> : <p className="kpi-value">{value}</p>}
+      <p className="kpi-note">{note}</p>
+    </Card>
+  );
+}
+
+export function StatusBadge({ badge, label }: { badge: string; label: string }) {
+  return <span className={`badge ${badge}`}>{label}</span>;
+}
