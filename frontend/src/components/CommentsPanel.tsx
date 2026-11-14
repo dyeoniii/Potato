@@ -1,8 +1,8 @@
 import { Inbox } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { errMessage } from '../lib/format';
-import type { Analysis, AnalysisResult, AnalyzeAllStatus, CommentItem, RiskLevel, Source } from '../types';
+import type { Analysis, AnalysisResult, AnalyzeAllStatus, BulkSaveRequest, CommentItem, RiskLevel, Source } from '../types';
 import CommentCard from './CommentCard';
 import { Button, ConfirmModal, Disclaimer, EmptyState, ErrorBox, InfoBox, LevelBadge } from './common';
 
@@ -56,7 +56,54 @@ export default function CommentsPanel({ caseId, comments, sources, analyzing, st
   const [error, setError] = useState<string | null>(null);
   const [lowOpen, setLowOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
+  const [saveSel, setSaveSel] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [repeatOnly, setRepeatOnly] = useState(false);
   const srcById = new Map(sources.map((s) => [s.id, s]));
+
+  // 같은 사건에서 같은 계정명이 법적 검토 필요·맥락 확인 필요 댓글을 남긴 횟수. 동일인 확정이 아니다.
+  const repeatByAuthor = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of comments) {
+      const lv = c.analysis?.level;
+      const au = c.author?.trim();
+      if (au && (lv === 'legal_review' || lv === 'needs_context')) m.set(au, (m.get(au) ?? 0) + 1);
+    }
+    return m;
+  }, [comments]);
+  const flaggedRepeat = (c: CommentItem) => {
+    const au = c.author?.trim();
+    const n = au ? (repeatByAuthor.get(au) ?? 0) : 0;
+    return n >= 2 ? n : 0;
+  };
+  const repeatAuthors = [...repeatByAuthor.values()].filter((n) => n >= 2).length;
+
+  function toggleSave(id: string) {
+    setSaveSel((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkSave(req: BulkSaveRequest, label: string) {
+    setSaving(true);
+    setError(null);
+    setSaveMsg(null);
+    try {
+      const res = await api.bulkSave(req);
+      const done = new Set(res.comment_ids);
+      onChange(comments.map((c) => (done.has(c.id) ? { ...c, saved: req.saved } : c)));
+      setSaveSel(new Set());
+      setSaveMsg(`${label} ${res.updated.toLocaleString()}개를 ${req.saved ? '증거함에 저장했습니다. 저장된 증거는 “사용자 확인 전” 상태입니다.' : '증거함에서 뺐습니다.'}`);
+    } catch (e) {
+      setError(errMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -109,11 +156,24 @@ export default function CommentsPanel({ caseId, comments, sources, analyzing, st
   const legal = byLevel('legal_review');
   const context = byLevel('needs_context');
   const low = byLevel('low_risk');
+  // "반복 작성자만 보기" 필터는 목록 표시에만 적용한다(상단 요약 숫자는 전체 기준).
+  const shown = (list: CommentItem[]) => (repeatOnly ? list.filter((c) => flaggedRepeat(c) >= 2) : list);
+  const unsaved = (list: CommentItem[]) => list.filter((c) => !c.saved).length;
   const analyzedCount = legal.length + context.length + low.length;
   const pendingCount = comments.length - analyzedCount;
 
   const renderReview = (c: CommentItem) => (
-    <CommentCard key={c.id} c={c} variant="review" source={srcById.get(c.source_id)} onPatch={(p) => patch(c.id, p)} />
+    <CommentCard
+      key={c.id}
+      c={c}
+      variant="review"
+      source={srcById.get(c.source_id)}
+      checked={saveSel.has(c.id)}
+      onToggle={() => toggleSave(c.id)}
+      checkLabel="증거함에 저장할 댓글 선택"
+      repeatCount={c.analysis?.level === 'low_risk' ? 0 : flaggedRepeat(c)}
+      onPatch={(p) => patch(c.id, p)}
+    />
   );
   const renderManual = (c: CommentItem) => (
     <CommentCard
@@ -157,6 +217,55 @@ export default function CommentsPanel({ caseId, comments, sources, analyzing, st
             </p>
           </div>
 
+          {(legal.length > 0 || context.length > 0) && (
+            <div className="space-y-2 rounded-2xl border border-brand-100 bg-white p-3 shadow-card">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  className="min-h-10 px-3"
+                  busy={saving}
+                  busyLabel="저장 중…"
+                  disabled={unsaved(legal) === 0}
+                  onClick={() => void bulkSave({ saved: true, case_id: caseId, level: 'legal_review' }, '법적 검토 필요')}
+                >
+                  법적 검토 필요 전체 저장 ({unsaved(legal).toLocaleString()})
+                </Button>
+                <Button
+                  className="min-h-10 px-3"
+                  busy={saving}
+                  busyLabel="저장 중…"
+                  disabled={unsaved(context) === 0}
+                  onClick={() => void bulkSave({ saved: true, case_id: caseId, level: 'needs_context' }, '맥락 확인 필요')}
+                >
+                  맥락 확인 필요 전체 저장 ({unsaved(context).toLocaleString()})
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="min-h-10 px-3"
+                  busy={saving}
+                  busyLabel="저장 중…"
+                  disabled={saveSel.size === 0}
+                  onClick={() => void bulkSave({ saved: true, comment_ids: [...saveSel] }, '선택한 댓글')}
+                >
+                  선택한 {saveSel.size.toLocaleString()}개 저장
+                </Button>
+                {saveSel.size > 0 && (
+                  <Button variant="ghost" className="min-h-10 px-3" onClick={() => setSaveSel(new Set())}>
+                    선택 해제
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-ink-600">일괄 저장한 증거는 “사용자 확인 전” 상태입니다. 원본과 비교해 직접 확인한 뒤 증거함에서 확인 표시를 해 주세요.</p>
+              {saveMsg && <InfoBox>{saveMsg}</InfoBox>}
+              {repeatAuthors > 0 && (
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={repeatOnly} onChange={(e) => setRepeatOnly(e.target.checked)} />
+                  반복 작성자만 보기 ({repeatAuthors}명)
+                </label>
+              )}
+              {repeatAuthors > 0 && <p className="text-xs text-ink-600">같은 계정명이 위험 신호 댓글을 2개 이상 남긴 경우입니다. 계정명이 같아도 같은 사람이라고 확정할 수 없습니다.</p>}
+            </div>
+          )}
+
           {analyzedCount > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-ink-200 bg-white p-3">
               <p className="text-xs text-ink-600">판독 기준이 바뀌었다면 이미 판독한 댓글도 다시 판독할 수 있습니다.</p>
@@ -174,15 +283,16 @@ export default function CommentsPanel({ caseId, comments, sources, analyzing, st
             </InfoBox>
           )}
 
-          <Group level="legal_review" items={legal} render={renderReview} />
-          <Group level="needs_context" items={context} render={renderReview} />
+          <Group level="legal_review" items={shown(legal)} render={renderReview} />
+          <Group level="needs_context" items={shown(context)} render={renderReview} />
+          {repeatOnly && shown(legal).length + shown(context).length === 0 && <InfoBox>반복 작성자 댓글이 없습니다.</InfoBox>}
 
           {low.length > 0 && (
             <details className="rounded-2xl border border-ink-200 bg-white p-4" onToggle={(e) => setLowOpen(e.currentTarget.open)}>
               <summary className="cursor-pointer select-none text-sm font-semibold text-ink-700">
                 <LevelBadge level="low_risk" /> {low.length.toLocaleString()}개 (눌러서 펼치기)
               </summary>
-              <div className="mt-3 space-y-3">{lowOpen && <CardList items={low} render={renderReview} />}</div>
+              <div className="mt-3 space-y-3">{lowOpen && <CardList items={shown(low)} render={renderReview} />}</div>
             </details>
           )}
 

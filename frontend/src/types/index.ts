@@ -79,6 +79,8 @@ export interface InputResponse {
 export interface AnalyzeAllStatus {
   case_id: string;
   running: boolean;
+  /** 중단 요청을 받고 진행 중인 배치를 마무리하는 중 */
+  stopping?: boolean;
   total: number;
   analyzed: number;
   pending: number;
@@ -107,6 +109,21 @@ export interface CommentPatch {
   saved?: boolean;
   user_note?: string | null;
   user_confirmed?: boolean;
+}
+
+export interface BulkSaveRequest {
+  saved: boolean;
+  /** 둘 중 하나로 대상 지정: 댓글 id 목록, 또는 case_id + level */
+  comment_ids?: string[];
+  case_id?: string;
+  level?: RiskLevel;
+}
+
+export interface BulkSaveResult {
+  saved: boolean;
+  updated: number;
+  comment_ids: string[];
+  missing: string[];
 }
 
 export type DocumentKind = 'statement' | 'evidence-list';

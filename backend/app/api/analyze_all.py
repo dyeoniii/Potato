@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
@@ -38,8 +37,8 @@ RATE_LIMIT_WAITS: tuple[float, ...] = (5, 10, 20, 40, 60, 60)
 _FATAL_CODES = {"LLM_CONFIG_ERROR"}
 
 
-def _sleep(seconds: float) -> None:  # 테스트에서 교체
-    time.sleep(seconds)
+def _sleep(seconds: float, stop_event: threading.Event) -> None:  # 테스트에서 교체
+    stop_event.wait(seconds)  # 중단 요청이 오면 바로 깨어난다
 
 
 @dataclass
@@ -52,6 +51,8 @@ class _Job:
     run_total: int = 0  # 이번 실행의 대상 수
     run_done: int = 0  # 이번 실행에서 저장된 수
     abort: bool = False
+    stop_event: threading.Event = field(default_factory=threading.Event)  # 사용자 중단 요청
+    stopped: bool = False  # 중단 요청으로 끝났는지
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -69,6 +70,10 @@ class _FatalError(Exception):
     pass
 
 
+class _Stopped(Exception):
+    """사용자가 중단을 요청해 아직 시작하지 않은 배치를 건너뜀(실패로 세지 않는다)."""
+
+
 def _analyze_batch(job: _Job, batch: list[tuple[str, str, str | None]]) -> list[AnalysisResult]:
     """한 배치를 판독하고 검증된 결과를 반환한다. 429는 대기 후 재시도, 형식 오류는 한 번만 재시도."""
     payload = [{"comment_id": cid, "content": content} for cid, content, _ in batch]
@@ -79,6 +84,8 @@ def _analyze_batch(job: _Job, batch: list[tuple[str, str, str | None]]) -> list[
     rate_waits = list(RATE_LIMIT_WAITS)
     format_retries = 1
     while True:
+        if job.stop_event.is_set():
+            raise _Stopped()
         if job.abort:
             raise _FatalError("중단됨")
         try:
@@ -107,7 +114,7 @@ def _analyze_batch(job: _Job, batch: list[tuple[str, str, str | None]]) -> list[
                 with job.lock:
                     job.waiting += 1
                 try:
-                    _sleep(wait)
+                    _sleep(wait, job.stop_event)
                 finally:
                     with job.lock:
                         job.waiting -= 1
@@ -127,6 +134,8 @@ def _run(case_id: str, job: _Job, items: list[tuple[str, str, str | None]]) -> N
             batch = futures[fut]
             try:
                 results = fut.result()
+            except _Stopped:
+                continue
             except _FatalError as exc:
                 job.failed += len(batch)
                 job.error = job.error or str(exc)
@@ -162,6 +171,7 @@ def _run(case_id: str, job: _Job, items: list[tuple[str, str, str | None]]) -> N
     finally:
         executor.shutdown(wait=True, cancel_futures=True)
         db.close()
+        job.stopped = job.stop_event.is_set()
         job.running = False
 
 
@@ -184,6 +194,14 @@ def _status(db: Session, case_id: str) -> AnalyzeAllStatus:
     if job:
         if not running and failed and job.force:
             message = f"{failed:,}개는 다시 판독하지 못했습니다. 이전 판독 결과는 그대로 남아 있습니다."
+        elif running and job.stop_event.is_set():
+            message = "진행 중인 배치를 마무리하고 중단합니다."
+        elif not running and job.stopped:
+            message = (
+                f"판독을 중단했습니다. 남은 {pending:,}개는 이어서 판독할 수 있습니다."
+                if pending
+                else "판독을 중단했습니다."
+            )
         elif running and job.waiting:
             message = "AI 사용량 제한으로 잠시 기다린 뒤 다시 시도하고 있습니다."
         elif not running and failed:
@@ -191,6 +209,7 @@ def _status(db: Session, case_id: str) -> AnalyzeAllStatus:
     return AnalyzeAllStatus(
         case_id=case_id,
         running=running,
+        stopping=bool(running and job and job.stop_event.is_set()),
         total=total,
         analyzed=analyzed,
         pending=pending,
@@ -226,6 +245,17 @@ def analyze_all(case_id: str, force: bool = False, db: Session = Depends(get_db)
             job = _Job(running=True, force=force, run_total=len(items))
             _jobs[case_id] = job
             threading.Thread(target=_run, args=(case_id, job, items), name=f"analyze-all-{case_id}", daemon=True).start()
+    return _status(db, case_id)
+
+
+@router.post("/cases/{case_id}/analyze-all/stop", response_model=AnalyzeAllStatus)
+def analyze_all_stop(case_id: str, db: Session = Depends(get_db)) -> AnalyzeAllStatus:
+    """진행 중인 배치는 마무리하고 새 배치는 시작하지 않는다. 이미 저장된 판독 결과는 유지된다.
+    실행 중이 아니면 아무 일도 하지 않고 현재 상태를 반환한다."""
+    get_case_or_404(db, case_id)
+    job = _jobs.get(case_id)
+    if job and job.running:
+        job.stop_event.set()
     return _status(db, case_id)
 
 

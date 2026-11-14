@@ -6,10 +6,11 @@ interface Props {
   error: string | null;
   onCloseError: () => void;
   onStart: () => void;
+  onStop: () => void;
 }
 
 /** 전체 자동 판독 진행률. 진행 중이거나 판독이 덜 끝났을 때만 보입니다. */
-export default function AnalyzeProgress({ status, error, onCloseError, onStart }: Props) {
+export default function AnalyzeProgress({ status, error, onCloseError, onStart, onStop }: Props) {
   if (!status) return <ErrorBox message={error} onClose={onCloseError} />;
   // 다시 판독 실행은 이미 판독된 댓글이 있으므로 이번 실행의 진행(run_*)을 기준으로 한다.
   const total = status.run_total ? status.run_total : status.total;
@@ -23,8 +24,13 @@ export default function AnalyzeProgress({ status, error, onCloseError, onStart }
         <>
           <div className="flex items-baseline justify-between gap-2 text-sm">
             <span className="font-semibold text-ink-900">AI가 전체 댓글을 자동 판독하고 있습니다</span>
-            <span className="tabular-nums text-ink-600">
-              {done.toLocaleString()} / {total.toLocaleString()}개 ({percent}%)
+            <span className="flex items-center gap-2">
+              <span className="tabular-nums text-ink-600">
+                {done.toLocaleString()} / {total.toLocaleString()}개 ({percent}%)
+              </span>
+              <Button variant="ghost" className="min-h-9 px-3" disabled={status.stopping} onClick={onStop}>
+                {status.stopping ? '중단하는 중…' : '중단'}
+              </Button>
             </span>
           </div>
           <div

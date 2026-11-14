@@ -10,6 +10,7 @@ import InputPanel from '../components/InputPanel';
 import ReviewPanel from '../components/ReviewPanel';
 import { Button, Card, ConfirmModal, ErrorBox, InfoBox, LoadingBlock } from '../components/common';
 import { errMessage, formatKst } from '../lib/format';
+import { useMaskAuthors } from '../lib/maskAuthors';
 import { useAnalyzeAll } from '../lib/useAnalyzeAll';
 import type { CaseDetail, CommentItem, InputResponse } from '../types';
 
@@ -41,6 +42,7 @@ export default function CaseDetailPage() {
   }, [load]);
 
   const analyzeAll = useAnalyzeAll(id, load);
+  const { mask, setMask } = useMaskAuthors();
 
   function onInput(res: InputResponse) {
     setData((d) => (d ? { ...d, sources: [...d.sources, res.source], comments: [...d.comments, ...res.comments] } : d));
@@ -105,6 +107,10 @@ export default function CaseDetailPage() {
             <span className="hidden sm:inline">삭제</span>
           </Button>
         </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" className="h-5 w-5 accent-brand-600" checked={mask} onChange={(e) => setMask(e.target.checked)} />
+          작성자 가리기 (데모용 · 화면 표시만 바뀌고 저장된 원본은 그대로)
+        </label>
         <ErrorBox message={error} onClose={() => setError(null)} />
       </Card>
 
@@ -128,7 +134,7 @@ export default function CaseDetailPage() {
         ))}
       </nav>
 
-      <AnalyzeProgress status={analyzeAll.status} error={analyzeAll.error} onCloseError={analyzeAll.clearError} onStart={() => void analyzeAll.start()} />
+      <AnalyzeProgress status={analyzeAll.status} error={analyzeAll.error} onCloseError={analyzeAll.clearError} onStart={() => void analyzeAll.start()} onStop={() => void analyzeAll.stop()} />
       {tab === 'input' && (
         <>
           {sharedUrl && <InfoBox>공유받은 주소를 채웠습니다. 내용을 확인한 뒤 직접 “댓글 가져오기”를 눌러 주세요.</InfoBox>}

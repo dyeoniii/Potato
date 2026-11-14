@@ -1,6 +1,8 @@
 import type {
   AnalysisResult,
   AnalyzeAllStatus,
+  BulkSaveRequest,
+  BulkSaveResult,
   AnswerItem,
   CaseDetail,
   CaseSummary,
@@ -34,8 +36,12 @@ export interface Api {
   /** 판독 안 된 댓글 전체를 서버에서 백그라운드로 판독 시작(이미 실행 중이면 현재 상태 반환). force=true면 이미 판독된 댓글도 다시 판독 */
   analyzeAll(caseId: string, force?: boolean): Promise<AnalyzeAllStatus>;
   analyzeAllStatus(caseId: string): Promise<AnalyzeAllStatus>;
+  /** 진행 중인 배치는 마무리하고 새 배치는 시작하지 않음. 저장된 결과는 유지 */
+  analyzeAllStop(caseId: string): Promise<AnalyzeAllStatus>;
+  /** 증거함 일괄 저장/해제. 사용자 확인 상태는 바꾸지 않음 */
+  bulkSave(body: BulkSaveRequest): Promise<BulkSaveResult>;
   patchComment(commentId: string, patch: CommentPatch): Promise<CommentItem>;
   agentReview(caseId: string): Promise<ReviewResponse>;
   agentAnswers(caseId: string, answers: AnswerItem[]): Promise<ReviewResponse>;
-  downloadDocument(caseId: string, kind: DocumentKind): Promise<{ blob: Blob; filename: string }>;
+  downloadDocument(caseId: string, kind: DocumentKind, maskAuthor?: boolean): Promise<{ blob: Blob; filename: string }>;
 }

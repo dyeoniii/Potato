@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { api } from '../api';
 import { formatKst } from '../lib/format';
+import { maskAuthor, useMaskAuthors } from '../lib/maskAuthors';
 import type { CommentItem, Source } from '../types';
 import { Button, LevelBadge, inputCls } from './common';
 
@@ -9,10 +10,14 @@ export type CommentPatchFn = (p: Parameters<typeof api.patchComment>[1]) => Prom
 interface Props {
   c: CommentItem;
   source?: Source;
-  /** extract: 수동 선택 판독 목록, review: 자동 판독 결과 목록(선택 없음), evidence: 증거함 */
+  /** extract: 수동 선택 판독 목록, review: 자동 판독 결과 목록(onToggle이 있을 때만 선택 가능), evidence: 증거함 */
   variant: 'extract' | 'review' | 'evidence';
   checked?: boolean;
   onToggle?: () => void;
+  /** 체크박스 접근성 이름 */
+  checkLabel?: string;
+  /** 같은 작성자가 위험 신호 댓글을 남긴 횟수(2 이상일 때 배지 표시) */
+  repeatCount?: number;
   onPatch: CommentPatchFn;
 }
 
@@ -25,7 +30,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function CommentCard({ c, source, variant, checked = false, onToggle, onPatch }: Props) {
+export default function CommentCard({ c, source, variant, checked = false, onToggle, checkLabel, repeatCount = 0, onPatch }: Props) {
+  const { mask } = useMaskAuthors();
+  const author = mask ? maskAuthor(c.author) : c.author;
+  const selectable = variant === 'extract' || (variant === 'review' && !!onToggle);
   const [note, setNote] = useState(c.user_note ?? '');
   const [pending, setPending] = useState(false);
   const a = c.analysis;
@@ -42,10 +50,33 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
 
   const body = (
     <div className="min-w-0 flex-1">
+      {(c.saved || repeatCount >= 2) && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {c.saved && (
+            <span
+              className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${
+                c.user_confirmed ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'
+              }`}
+            >
+              증거함 · {c.user_confirmed ? '내용 확인함' : '사용자 확인 전'}
+            </span>
+          )}
+          {repeatCount >= 2 && (
+            <span
+              tabIndex={0}
+              title="계정명이 같아도 같은 사람이라고 확정할 수 없습니다. 같은 작성자인지는 직접 확인해 주세요."
+              aria-label={`반복 작성자 ${repeatCount}건. 계정명이 같아도 같은 사람이라고 확정할 수 없습니다.`}
+              className="cursor-help rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700"
+            >
+              반복 작성자 {repeatCount}건
+            </span>
+          )}
+        </div>
+      )}
       <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{c.content}</p>
       <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-600">
         <dt>작성자</dt>
-        <dd>{c.author ?? '확인되지 않음'}</dd>
+        <dd>{author ?? '확인되지 않음'}</dd>
         <dt>작성 시각</dt>
         <dd>{formatKst(c.posted_at)}</dd>
         <dt>출처</dt>
@@ -68,9 +99,9 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
 
   return (
     <li className={`rounded-2xl border bg-white p-4 shadow-card sm:p-5 ${c.saved ? 'border-brand-400' : 'border-brand-100'}`}>
-      {variant === 'extract' ? (
+      {selectable ? (
         <label className="flex cursor-pointer items-start gap-3">
-          <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-brand-600" checked={checked} onChange={onToggle} aria-label="판독할 댓글 선택" />
+          <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-brand-600" checked={checked} onChange={onToggle} aria-label={checkLabel ?? '판독할 댓글 선택'} />
           {body}
         </label>
       ) : (

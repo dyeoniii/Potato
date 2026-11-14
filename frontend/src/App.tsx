@@ -1,5 +1,6 @@
 import { Link, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
+import { MaskAuthorsProvider } from './lib/maskAuthors';
 import AnalyzePage from './pages/AnalyzePage';
 import CaseDetailPage from './pages/CaseDetailPage';
 import CasesPage from './pages/CasesPage';
@@ -9,6 +10,7 @@ import ShareTargetPage from './pages/ShareTargetPage';
 
 export default function App() {
   return (
+    <MaskAuthorsProvider>
     <Layout>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
@@ -30,5 +32,6 @@ export default function App() {
         />
       </Routes>
     </Layout>
+    </MaskAuthorsProvider>
   );
 }

@@ -105,7 +105,7 @@ def test_only_unanalyzed_comments_are_sent(client, monkeypatch):
 
 def test_rate_limit_429_waits_then_retries(client, monkeypatch):
     waits = []
-    monkeypatch.setattr(analyze_all, "_sleep", lambda s: waits.append(s))
+    monkeypatch.setattr(analyze_all, "_sleep", lambda s, ev=None: waits.append(s))
     calls = {"n": 0}
 
     def analyzer(comments, context=None):
@@ -124,7 +124,7 @@ def test_rate_limit_429_waits_then_retries(client, monkeypatch):
 
 
 def test_rate_limit_gives_up_and_rerun_picks_up_rest(client, monkeypatch):
-    monkeypatch.setattr(analyze_all, "_sleep", lambda s: None)
+    monkeypatch.setattr(analyze_all, "_sleep", lambda s, ev=None: None)
     monkeypatch.setattr(analyze_all, "RATE_LIMIT_WAITS", (1, 1))
     broken = {"on": True}
 

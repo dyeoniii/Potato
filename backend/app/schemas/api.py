@@ -147,6 +147,7 @@ class AnalyzeAllStatus(BaseModel):
 
     case_id: str
     running: bool
+    stopping: bool = False  # 중단 요청을 받고 진행 중인 배치를 마무리하는 중
     total: int
     analyzed: int
     pending: int
@@ -200,6 +201,38 @@ class CommentPatch(BaseModel):
         if not self.model_fields_set:
             raise ValueError("saved, user_note, user_confirmed 중 하나 이상이 필요합니다.")
         return self
+
+
+class BulkCommentPatch(BaseModel):
+    """여러 댓글의 증거함 저장 상태를 한 번에 바꾼다. user_confirmed·메모는 건드리지 않는다.
+
+    대상은 ``comment_ids`` 또는 (``case_id`` + ``level``) 중 하나로 지정한다.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    saved: bool
+    comment_ids: list[str] | None = Field(default=None, min_length=1, max_length=20000)
+    case_id: str | None = Field(default=None, max_length=64)
+    level: Level | None = None
+
+    @model_validator(mode="after")
+    def _one_target(self) -> "BulkCommentPatch":
+        by_ids = self.comment_ids is not None
+        by_level = self.level is not None
+        if by_ids == by_level:
+            raise ValueError("comment_ids 또는 level(+case_id) 중 하나만 지정해야 합니다.")
+        if by_level and not self.case_id:
+            raise ValueError("level로 지정할 때는 case_id가 필요합니다.")
+        if by_ids:
+            self.comment_ids = list(dict.fromkeys(self.comment_ids or []))
+        return self
+
+
+class BulkCommentResult(BaseModel):
+    saved: bool
+    updated: int
+    comment_ids: list[str]
+    missing: list[str] = Field(default_factory=list)
 
 
 # ---------- 입력 ----------

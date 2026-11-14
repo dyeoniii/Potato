@@ -81,5 +81,14 @@ export function useAnalyzeAll(caseId: string, onRefresh: () => Promise<void> | v
     }
   }, [caseId]);
 
-  return { status, error, clearError: () => setError(null), start, running: polling || status?.running === true };
+  const stop = useCallback(async () => {
+    setError(null);
+    try {
+      setStatus(await api.analyzeAllStop(caseId)); // 폴링은 계속되어 끝나면 결과를 반영한다
+    } catch (e) {
+      setError(errMessage(e));
+    }
+  }, [caseId]);
+
+  return { status, error, stop, clearError: () => setError(null), start, running: polling || status?.running === true };
 }

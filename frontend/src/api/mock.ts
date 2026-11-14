@@ -184,6 +184,7 @@ function ytId(url: string): string | null {
 // 전체 자동 판독 시뮬레이션: 300ms마다 50개씩 처리. 메모리에만 있는 진행 상태.
 interface MockJob {
   running: boolean;
+  stop: boolean;
   total: number;
   done: number;
 }
@@ -197,6 +198,7 @@ function mockStatus(c: CaseDetail): AnalyzeAllStatus {
   return {
     case_id: c.id,
     running: job?.running === true,
+    stopping: job?.running === true && job.stop,
     total: c.comments.length,
     analyzed,
     pending: c.comments.length - analyzed,
@@ -296,9 +298,15 @@ export const mockApi: Api = {
     const c = findCase(caseId);
     const targets = c.comments.filter((x) => force || !x.analysis);
     if (!mockJobs.get(caseId)?.running && targets.length) {
-      const job: MockJob = { running: true, total: targets.length, done: 0 };
+      const job: MockJob = { running: true, stop: false, total: targets.length, done: 0 };
       mockJobs.set(caseId, job);
       const timer = setInterval(() => {
+        if (job.stop) {
+          clearInterval(timer);
+          job.running = false;
+          save();
+          return;
+        }
         for (const cm of targets.slice(job.done, job.done + 50)) cm.analysis = mockAnalysis(cm.content);
         job.done = Math.min(job.done + 50, job.total);
         if (job.done >= job.total || !db.cases.includes(c)) {
@@ -309,6 +317,24 @@ export const mockApi: Api = {
       }, 300);
     }
     return wait(mockStatus(c), 50);
+  },
+  async analyzeAllStop(caseId) {
+    const job = mockJobs.get(caseId);
+    if (job?.running) job.stop = true;
+    return wait(mockStatus(findCase(caseId)), 50);
+  },
+  async bulkSave(body) {
+    let targets: CommentItem[];
+    if (body.level) {
+      targets = findCase(body.case_id ?? '').comments.filter((c) => c.analysis?.level === body.level);
+    } else {
+      const ids = new Set(body.comment_ids ?? []);
+      targets = db.cases.flatMap((c) => c.comments).filter((c) => ids.has(c.id));
+    }
+    for (const c of targets) c.saved = body.saved;
+    const found = new Set(targets.map((c) => c.id));
+    save();
+    return wait({ saved: body.saved, updated: targets.length, comment_ids: [...found], missing: (body.comment_ids ?? []).filter((id) => !found.has(id)) }, 150);
   },
   async analyzeAllStatus(caseId) {
     return wait(mockStatus(findCase(caseId)), 50);
