@@ -18,6 +18,14 @@ from app.db import Base, engine  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _force_adapter_stubs(monkeypatch):
+    """다른 세션의 실제 모듈/.env 키/네트워크에 의존하지 않도록 항상 stub으로 테스트."""
+    from app.api import adapters
+
+    monkeypatch.setattr(adapters, "_resolve", lambda name: (adapters._STUBS[name], False))
+
+
 @pytest.fixture()
 def client():
     from app import models  # noqa: F401
