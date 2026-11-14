@@ -14,3 +14,7 @@ frontend/dist/
 frontend/.vite/
 .kiro/cache/
 .DS_Store
+
+backend/.venv/
+frontend/.env.local
+backend/.env

@@ -1,6 +1,6 @@
 # Kiro Crew 4세션 시작 프롬프트
 
-> 공통: **Quick Spec을 한 번만 생성/커밋한 뒤** 아래 프롬프트를 각 독립 세션에 입력.
+> 공통: **이미 요구사항과 계약이 준비되어 있으므로 Quick Spec 생성을 건너뛰고** 아래 프롬프트를 각 독립 세션에 입력. (선택적으로 생성 시 한 명이 한 번만 수행)
 > `#spec` 표기는 사용 중인 Kiro가 이해하는 스펙 참조로 교체하거나, 그 기능이 없다면 생성된 `tasks.md` 경로를 명시.
 > **서로 다른 브랜치와 가능하면 다른 Git worktree**를 사용. 같은 실제 폴더에서 4개 세션이 동시에 파일 쓰기 금지.
 
@@ -10,7 +10,7 @@
 브랜치 `feat/frontend` / 소유: `frontend/**`
 
 ```text
-생성된 Quick Spec의 [FE] 작업만 진행해줘. 먼저 docs/requirements-mvp.md,
+docs/requirements-mvp.md의 [FE] 작업만 진행해줘. 먼저 docs/requirements-mvp.md,
 docs/api-contract.md, docs/session-ownership.md를 읽어줘.
 오직 frontend/**만 수정하고 공용 파일 및 backend/**는 읽기만 해.
 
@@ -32,7 +32,7 @@ API 호출은 src/api/에 집중. 로딩/빈 응답/400/503 오류 표시.
 브랜치 `feat/docs-pdf` / 소유: `backend/app/documents/**`, `samples/**`, `docs/presentation/**`
 
 ```text
-생성된 Quick Spec의 [DOC] 작업만 진행해줘.
+docs/requirements-mvp.md의 [DOC] 작업만 진행해줘.
 docs/api-contract.md, docs/internal-interfaces.md를 읽고, 지정 폴더만 수정해줘.
 
 1) backend/app/documents/pdf.py에 generate_statement_pdf(case_data: dict) -> bytes,
@@ -53,7 +53,7 @@ PDF를 실제로 생성해 한글 깨짐/잘림을 테스트하고 에러 있으
 브랜치 `feat/backend-api` / 소유: `backend/app/api/**`, `backend/app/models/**`, `backend/app/schemas/**`, `backend/app/db.py`, `backend/app/main.py`, `backend/requirements.txt`
 
 ```text
-생성된 Quick Spec의 [API] 작업을 먼저 수행해줘.
+docs/requirements-mvp.md의 [API] 작업을 먼저 수행해줘.
 docs/api-contract.md와 docs/internal-interfaces.md를 고정 계약으로 읽어줘.
 오직 담당한 백엔드 경로만 수정하고 다른 세션 폴더는 읽기만 해.
 
@@ -77,7 +77,7 @@ API: /api/health, /cases 목록/생성/상세/삭제,
 브랜치 `feat/analysis` / 소유: `backend/app/collectors/**`, `backend/app/analysis/**`
 
 ```text
-생성된 Quick Spec의 [AI] 작업만 수행해줘.
+docs/requirements-mvp.md의 [AI] 작업만 수행해줘.
 docs/analysis-criteria.md, docs/api-contract.md, docs/internal-interfaces.md를 따라줘.
 담당한 collectors/**와 analysis/**만 수정해.
 
@@ -103,7 +103,7 @@ API/DB 라우터·schemas·requirements 파일은 수정하지 말 것.
 ## 통합 프롬프트 (S3 [API] 담당자가 PR 병합 후)
 
 ```text
-생성된 Quick Spec의 [INTEGRATION] 작업을 수행해줘.
+docs/acceptance-tests.md의 [INTEGRATION] 작업을 수행해줘.
 우선 docs/acceptance-tests.md, docs/api-contract.md, docs/internal-interfaces.md를 읽어.
 1) API ↔ AI 함수 연결, 2) DOC PDF bytes 연결, 3) FE의 VITE_USE_MOCK=false 연결.
 4) SQLite로 사건 생성→텍스트/이미지/YouTube URL→판독→저장→체크리스트→PDF 2종,
