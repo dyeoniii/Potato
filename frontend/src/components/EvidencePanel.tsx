@@ -45,7 +45,7 @@ export default function EvidencePanel({ comments, sources, onChange, onGoComment
           <p className="text-sm text-ink-600">
             저장된 증거 <b className="text-ink-900">{saved.length}건</b> · 내용 확인 {confirmed}건 · 사용자 확인 전 {saved.length - confirmed}건
           </p>
-          <ul className="space-y-3">
+          <ul className="panel">
             {saved.map((c) => (
               <CommentCard key={c.id} c={c} variant="evidence" source={srcById.get(c.source_id)} onPatch={(p) => patch(c.id, p)} />
             ))}

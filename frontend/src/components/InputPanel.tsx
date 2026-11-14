@@ -4,7 +4,7 @@ import { api } from '../api';
 import { errMessage } from '../lib/format';
 import { isHttpUrl } from '../lib/share';
 import type { InputResponse } from '../types';
-import { Button, Card, ErrorBox, InfoBox, inputCls } from './common';
+import { Button, Card, ErrorBox, InfoBox, TabBar, inputCls, type TabItem } from './common';
 
 type Mode = 'url' | 'text' | 'image';
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -109,7 +109,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
     );
   }
 
-  const tabs: { key: Mode; label: string }[] = [
+  const tabs: TabItem<Mode>[] = [
     { key: 'text', label: '텍스트' },
     { key: 'image', label: '스크린샷' },
     { key: 'url', label: 'SNS URL' },
@@ -117,30 +117,14 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
 
   return (
     <Card className="space-y-3">
-      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-2xl bg-brand-50 p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            type="button"
-            aria-selected={mode === t.key}
-            onClick={() => {
-              setMode(t.key);
-              setError(null);
-            }}
-            className={`min-h-11 rounded-xl text-sm font-semibold ${mode === t.key ? 'bg-brand-700 text-white' : 'text-ink-700 hover:bg-brand-100'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar label="입력 방식" inset items={tabs} value={mode} onChange={(m) => { setMode(m); setError(null); }} />
 
       {mode === 'url' && (
-        <div className="space-y-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4">
-          <label className="block text-sm font-semibold">
+        <div className="space-y-3 rounded-2xl border border-brand-200 bg-brand-50 p-4">
+          <label className="field-label">
             게시물 주소
             <input
-              className={`${inputCls} mt-1`}
+              className={`${inputCls} mt-1.5`}
               inputMode="url"
               placeholder="https://www.youtube.com/watch?v=..."
               value={url}
@@ -158,9 +142,9 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
 
       {mode === 'text' && (
         <div className="space-y-3">
-          <label className="block text-sm font-medium">
+          <label className="field-label">
             댓글 내용 (한 줄에 하나)
-            <textarea className={`${inputCls} mt-1 min-h-32`} value={text} onChange={(e) => setText(e.target.value)} placeholder="댓글을 붙여넣어 주세요" />
+            <textarea className={`${inputCls} mt-1.5 min-h-[7rem]`} value={text} onChange={(e) => setText(e.target.value)} placeholder="댓글을 붙여넣어 주세요" />
           </label>
           <SourceFields sourceUrl={sourceUrl} setSourceUrl={setSourceUrl} context={context} setContext={setContext} />
           <Button className="w-full" busy={busy} busyLabel="추가하는 중…" onClick={submitText}>
@@ -172,7 +156,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
       {mode === 'image' && (
         <div className="space-y-3">
           <div>
-            <p className="text-sm font-semibold">댓글 스크린샷</p>
+            <p className="field-label">댓글 스크린샷</p>
             <label
               onDragOver={(e) => {
                 e.preventDefault();
@@ -239,13 +223,13 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
 function SourceFields(p: { sourceUrl: string; setSourceUrl: (v: string) => void; context: string; setContext: (v: string) => void }) {
   return (
     <>
-      <label className="block text-sm font-medium">
+      <label className="field-label">
         원본 게시글 주소 (선택)
-        <input className={`${inputCls} mt-1`} inputMode="url" value={p.sourceUrl} onChange={(e) => p.setSourceUrl(e.target.value)} placeholder="https://" />
+        <input className={`${inputCls} mt-1.5`} inputMode="url" value={p.sourceUrl} onChange={(e) => p.setSourceUrl(e.target.value)} placeholder="https://" />
       </label>
-      <label className="block text-sm font-medium">
+      <label className="field-label">
         원본 게시글 맥락 (선택)
-        <textarea className={`${inputCls} mt-1 min-h-20`} value={p.context} onChange={(e) => p.setContext(e.target.value)} placeholder="어떤 게시물에 달린 댓글인지 적어 주세요" />
+        <textarea className={`${inputCls} mt-1.5 min-h-[4.5rem]`} value={p.context} onChange={(e) => p.setContext(e.target.value)} placeholder="어떤 게시물에 달린 댓글인지 적어 주세요" />
       </label>
     </>
   );

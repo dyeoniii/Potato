@@ -98,7 +98,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
   );
 
   return (
-    <li className={`rounded-2xl border bg-white p-4 shadow-card sm:p-5 ${c.saved ? 'border-brand-400' : 'border-brand-100'}`}>
+    <li className={`border-b border-ink-200 px-4 py-4 last:border-b-0 sm:px-5 ${c.saved ? 'bg-brand-50' : 'bg-white'}`}>
       {selectable ? (
         <label className="flex cursor-pointer items-start gap-3">
           <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-brand-600" checked={checked} onChange={onToggle} aria-label={checkLabel ?? '판독할 댓글 선택'} />
@@ -109,9 +109,9 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
       )}
 
       {a ? (
-        <div className="mt-4 space-y-3 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm">
+        <div className="report-block mt-4 space-y-3 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-bold tracking-wide text-brand-800">AI 판독 결과</p>
+            <p className="text-xs font-bold tracking-wide text-ink-700">AI 판독 리포트</p>
             <LevelBadge level={a.level} label={a.level_label} />
           </div>
           {a.issues.length > 0 && (
@@ -153,12 +153,12 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
               <p className="mt-2 text-ink-600">참고용 분류이며 처벌이나 고소 성립 여부를 뜻하지 않습니다.</p>
             </div>
           )}
-          <div className="rounded-xl border border-ink-200 bg-white p-3.5">
+          <div className="rounded-lg border border-ink-200 bg-white p-3.5">
             <p className="text-xs font-bold text-ink-700">판단 근거</p>
             <p className="mt-1 leading-relaxed">{a.reason}</p>
           </div>
           {a.check_points.length > 0 && (
-            <div className="rounded-xl border border-ink-200 bg-white p-3.5">
+            <div className="rounded-lg border border-ink-200 bg-white p-3.5">
               <p className="text-xs font-bold text-ink-700">추가 확인 사항</p>
               <ul className="mt-2 space-y-1.5">
                 {a.check_points.map((p) => (
@@ -204,7 +204,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
 
       <Button
         variant={c.saved ? 'ghost' : 'primary'}
-        className={`mt-4 w-full ${c.saved ? '' : 'bg-brand-700 hover:bg-brand-800'}`}
+        className="mt-4 w-full"
         busy={pending}
         busyLabel="저장 중…"
         onClick={() => void patch({ saved: !c.saved })}

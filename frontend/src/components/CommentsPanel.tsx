@@ -27,7 +27,7 @@ function CardList({ items, render }: { items: CommentItem[]; render: (c: Comment
   const [shown, setShown] = useState(PAGE);
   return (
     <>
-      <ul className="space-y-3">{items.slice(0, shown).map(render)}</ul>
+      <ul className="panel">{items.slice(0, shown).map(render)}</ul>
       {items.length > shown && (
         <Button variant="ghost" className="w-full" onClick={() => setShown((n) => n + PAGE)}>
           더 보기 ({(items.length - shown).toLocaleString()}개 남음)
