@@ -6,7 +6,12 @@ export default {
       fontFamily: {
         sans: ['Pretendard Variable', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'Apple SD Gothic Neo', 'Noto Sans KR', 'system-ui', 'sans-serif'],
       },
+      boxShadow: {
+        card: '0 1px 2px rgba(76, 29, 149, 0.05), 0 4px 16px rgba(76, 29, 149, 0.07)',
+      },
       colors: {
+        // 메인 영역 연보라 배경
+        canvas: '#efeaff',
         // 퍼플 포인트
         brand: {
           50: '#f5f3ff',

@@ -19,7 +19,7 @@ interface Props {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-semibold text-ink-500">{title}</p>
+      <p className="text-xs font-bold text-ink-700">{title}</p>
       <div className="mt-1">{children}</div>
     </div>
   );
@@ -43,7 +43,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
   const body = (
     <div className="min-w-0 flex-1">
       <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{c.content}</p>
-      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-500">
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-600">
         <dt>작성자</dt>
         <dd>{c.author ?? '확인되지 않음'}</dd>
         <dt>작성 시각</dt>
@@ -67,7 +67,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
   );
 
   return (
-    <li className={`rounded-2xl border bg-white p-4 shadow-sm sm:p-5 ${c.saved ? 'border-brand-300' : 'border-ink-200'}`}>
+    <li className={`rounded-2xl border bg-white p-4 shadow-card sm:p-5 ${c.saved ? 'border-brand-400' : 'border-brand-100'}`}>
       {variant === 'extract' ? (
         <label className="flex cursor-pointer items-start gap-3">
           <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-brand-600" checked={checked} onChange={onToggle} aria-label="판독할 댓글 선택" />
@@ -78,15 +78,16 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
       )}
 
       {a ? (
-        <div className="mt-4 space-y-3 rounded-xl bg-ink-50 p-3.5 text-sm">
-          <Section title="위험 신호 분류">
+        <div className="mt-4 space-y-3 rounded-2xl border border-brand-100 bg-brand-50 p-4 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-bold tracking-wide text-brand-800">AI 판독 결과</p>
             <LevelBadge level={a.level} label={a.level_label} />
-          </Section>
+          </div>
           {a.issues.length > 0 && (
             <Section title="법적 검토 쟁점">
               <div className="flex flex-wrap gap-1.5">
                 {a.issues.map((i) => (
-                  <span key={i} className="rounded-lg border border-ink-200 bg-white px-2 py-0.5 text-xs font-medium">
+                  <span key={i} className="rounded-lg border border-brand-200 bg-white px-2.5 py-1 text-xs font-semibold text-brand-800">
                     {i}
                   </span>
                 ))}
@@ -95,25 +96,30 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
           )}
           {a.flagged_phrases.length > 0 && (
             <Section title="문제 표현">
-              <p>{a.flagged_phrases.map((p) => `“${p}”`).join(', ')}</p>
+              <p className="font-medium">{a.flagged_phrases.map((p) => `“${p}”`).join(', ')}</p>
             </Section>
           )}
-          <Section title="판단 근거">
-            <p className="leading-relaxed">{a.reason}</p>
-          </Section>
+          <div className="rounded-xl border border-ink-200 bg-white p-3.5">
+            <p className="text-xs font-bold text-ink-700">판단 근거</p>
+            <p className="mt-1 leading-relaxed">{a.reason}</p>
+          </div>
           {a.check_points.length > 0 && (
-            <Section title="추가 확인 사항">
-              <ul className="list-disc space-y-0.5 pl-5">
+            <div className="rounded-xl border border-ink-200 bg-white p-3.5">
+              <p className="text-xs font-bold text-ink-700">추가 확인 사항</p>
+              <ul className="mt-2 space-y-1.5">
                 {a.check_points.map((p) => (
-                  <li key={p}>{p}</li>
+                  <li key={p} className="flex items-start gap-2">
+                    <span aria-hidden className="mt-0.5 h-4 w-4 shrink-0 rounded border-2 border-brand-400" />
+                    <span>{p}</span>
+                  </li>
                 ))}
               </ul>
-            </Section>
+            </div>
           )}
-          <p className="text-xs text-ink-500">AI 추정입니다. {a.disclaimer}</p>
+          <p className="text-xs text-ink-600">AI 추정입니다. {a.disclaimer}</p>
         </div>
       ) : (
-        variant === 'evidence' && <p className="mt-3 rounded-xl bg-ink-50 p-3 text-xs text-ink-500">아직 AI 판독을 하지 않은 댓글입니다. 판독 탭에서 선택해 판독할 수 있습니다.</p>
+        variant === 'evidence' && <p className="mt-3 rounded-xl bg-ink-50 p-3 text-xs text-ink-600">아직 AI 판독을 하지 않은 댓글입니다. 판독 탭에서 선택해 판독할 수 있습니다.</p>
       )}
 
       <details open={variant === 'evidence'} className="group mt-4 border-t border-ink-100 pt-3">
@@ -144,7 +150,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
 
       <Button
         variant={c.saved ? 'ghost' : 'primary'}
-        className="mt-3 w-full"
+        className={`mt-4 w-full ${c.saved ? '' : 'bg-brand-700 hover:bg-brand-800'}`}
         busy={pending}
         busyLabel="저장 중…"
         onClick={() => void patch({ saved: !c.saved })}

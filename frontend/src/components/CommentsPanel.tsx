@@ -90,7 +90,7 @@ export default function CommentsPanel({ caseId, comments, sources, onChange, onG
         />
       ) : (
         <>
-          <div className="sticky top-14 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-200 bg-white/95 p-2.5 shadow-sm backdrop-blur md:top-0">
+          <div className="sticky top-16 z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand-100 bg-white p-3 shadow-card md:top-2">
             <span className="text-sm text-ink-600">
               댓글 {comments.length}개 · <b className="text-ink-900">{selected.size}개 선택</b> (최대 {MAX_BATCH})
             </span>
@@ -109,7 +109,7 @@ export default function CommentsPanel({ caseId, comments, sources, onChange, onG
           </div>
 
           {analyzed.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-ink-500">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-ink-600">
               판독 완료 {analyzed.length}개
               <span className="flex items-center gap-1">
                 <LevelBadge level="legal_review" /> {count('legal_review')}

@@ -65,18 +65,18 @@ export default function AnalyzePage() {
       <section className="space-y-2">
         <h2 className="font-semibold">기존 사건에 추가</h2>
         {cases === null && <LoadingBlock />}
-        {cases?.length === 0 && !error && <p className="rounded-2xl border border-dashed border-ink-300 bg-white p-4 text-sm text-ink-500">아직 사건이 없습니다. 위에서 새 사건을 만들어 주세요.</p>}
+        {cases?.length === 0 && !error && <p className="rounded-2xl border border-dashed border-ink-300 bg-white p-4 text-sm text-ink-600">아직 사건이 없습니다. 위에서 새 사건을 만들어 주세요.</p>}
         <ul className="space-y-2">
           {cases?.map((c) => (
             <li key={c.id}>
               <button
                 type="button"
                 onClick={() => navigate(`/cases/${c.id}`)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-ink-200 bg-white p-4 text-left shadow-sm hover:border-brand-300"
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-brand-100 bg-white shadow-card p-4 text-left shadow-sm hover:border-brand-300"
               >
                 <span className="min-w-0">
                   <span className="block truncate font-medium">{c.title}</span>
-                  <span className="block text-xs text-ink-500">{formatKst(c.created_at)}</span>
+                  <span className="block text-xs text-ink-600">{formatKst(c.created_at)}</span>
                 </span>
                 <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700">증거 {c.saved_count}건</span>
               </button>

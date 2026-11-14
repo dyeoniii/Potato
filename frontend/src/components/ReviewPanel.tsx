@@ -68,35 +68,35 @@ export default function ReviewPanel({
         <>
           <Card>
             <div className="flex items-baseline justify-between">
-              <h3 className="font-semibold">항목 작성률</h3>
+              <h3 className="text-base font-bold">항목 작성률</h3>
               <span className="text-2xl font-bold text-brand-700">{review.completeness}%</span>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded bg-ink-200">
               <div className="h-full bg-brand-600" style={{ width: `${Math.min(100, Math.max(0, review.completeness))}%` }} />
             </div>
-            <p className="mt-2 text-xs text-ink-500">서비스 내 체크 항목을 채운 비율입니다. 소송 성공 가능성이나 증거의 법적 충분성을 뜻하지 않습니다.</p>
+            <p className="mt-2 text-xs text-ink-600">서비스 내 체크 항목을 채운 비율입니다. 소송 성공 가능성이나 증거의 법적 충분성을 뜻하지 않습니다.</p>
           </Card>
 
-          <Card>
-            <h3 className="mb-2 font-semibold">체크리스트</h3>
-            <ul className="space-y-2">
+          <section className="space-y-3">
+            <h3 className="text-base font-bold">증거 준비 체크리스트</h3>
+            <ul className="grid gap-3 sm:grid-cols-2">
               {review.checklist.map((c) => {
                 const s = STATUS[c.status] ?? { label: c.status, cls: 'bg-ink-100 text-ink-700' };
                 return (
-                  <li key={c.item} className="flex items-start justify-between gap-2 text-sm">
-                    <div>
-                      <p className="font-medium">{c.item}</p>
-                      <p className="text-xs text-ink-500">{c.detail}</p>
+                  <li key={c.item} className="rounded-2xl border border-brand-100 bg-white p-4 shadow-card">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold">{c.item}</p>
+                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>
+                    <p className="mt-1 text-sm text-ink-600">{c.detail}</p>
                   </li>
                 );
               })}
             </ul>
-          </Card>
+          </section>
 
           <Card className="space-y-3">
-            <h3 className="font-semibold">추가 확인 질문</h3>
+            <h3 className="text-base font-bold">추가 확인 질문</h3>
             {review.questions.length === 0 && Object.keys(answers).length === 0 && <InfoBox>추가로 확인할 질문이 없습니다.</InfoBox>}
             {review.questions.map((q) => (
               <label key={q.id} className="block text-sm font-medium">
@@ -108,7 +108,7 @@ export default function ReviewPanel({
               .filter(([id, v]) => v && !review.questions.some((q) => q.id === id))
               .map(([id, v]) => (
                 <p key={id} className="rounded bg-ink-50 p-2 text-sm">
-                  <span className="text-xs text-ink-500">저장된 답변 ({id})</span>
+                  <span className="text-xs text-ink-600">저장된 답변 ({id})</span>
                   <br />
                   {v}
                 </p>

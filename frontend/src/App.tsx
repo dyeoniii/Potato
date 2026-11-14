@@ -4,6 +4,7 @@ import AnalyzePage from './pages/AnalyzePage';
 import CaseDetailPage from './pages/CaseDetailPage';
 import CasesPage from './pages/CasesPage';
 import DashboardPage from './pages/DashboardPage';
+import EvidencePage from './pages/EvidencePage';
 import ShareTargetPage from './pages/ShareTargetPage';
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/analyze" element={<AnalyzePage />} />
         <Route path="/cases" element={<CasesPage />} />
         <Route path="/cases/:id" element={<CaseDetailPage />} />
+        <Route path="/evidence" element={<EvidencePage />} />
         <Route path="/share-target" element={<ShareTargetPage />} />
         <Route
           path="*"
