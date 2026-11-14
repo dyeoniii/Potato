@@ -1,26 +1,58 @@
 import { Inbox } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { errMessage } from '../lib/format';
-import type { Analysis, AnalysisResult, CommentItem, Source } from '../types';
+import type { Analysis, AnalysisResult, AnalyzeAllStatus, CommentItem, RiskLevel, Source } from '../types';
 import CommentCard from './CommentCard';
 import { Button, Disclaimer, EmptyState, ErrorBox, InfoBox, LevelBadge } from './common';
 
 const MAX_BATCH = 20;
+const PAGE = 30;
 
 interface Props {
   caseId: string;
   comments: CommentItem[];
   sources: Source[];
+  /** 전체 자동 판독이 진행 중이면 true */
+  analyzing: boolean;
+  status: AnalyzeAllStatus | null;
   onChange: (comments: CommentItem[]) => void;
   onGoInput: () => void;
 }
 
-export default function CommentsPanel({ caseId, comments, sources, onChange, onGoInput }: Props) {
+/** 많은 댓글을 한 번에 그리지 않도록 PAGE개씩 보여줍니다. */
+function CardList({ items, render }: { items: CommentItem[]; render: (c: CommentItem) => ReactNode }) {
+  const [shown, setShown] = useState(PAGE);
+  return (
+    <>
+      <ul className="space-y-3">{items.slice(0, shown).map(render)}</ul>
+      {items.length > shown && (
+        <Button variant="ghost" className="w-full" onClick={() => setShown((n) => n + PAGE)}>
+          더 보기 ({(items.length - shown).toLocaleString()}개 남음)
+        </Button>
+      )}
+    </>
+  );
+}
+
+function Group({ level, items, render }: { level: RiskLevel; items: CommentItem[]; render: (c: CommentItem) => ReactNode }) {
+  if (!items.length) return null;
+  return (
+    <section className="space-y-3" aria-label={`${level} 댓글`}>
+      <h2 className="flex items-center gap-2 text-base font-bold text-ink-900">
+        <LevelBadge level={level} /> {items.length.toLocaleString()}개
+      </h2>
+      <CardList items={items} render={render} />
+    </section>
+  );
+}
+
+export default function CommentsPanel({ caseId, comments, sources, analyzing, status, onChange, onGoInput }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [lowOpen, setLowOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
   const srcById = new Map(sources.map((s) => [s.id, s]));
 
   function toggle(id: string) {
@@ -69,18 +101,40 @@ export default function CommentsPanel({ caseId, comments, sources, onChange, onG
   }
 
   const manual = sources.filter((s) => s.needs_manual_input);
-  const analyzed = comments.filter((c) => c.analysis);
-  const count = (lv: string) => analyzed.filter((c) => c.analysis?.level === lv).length;
+  const notices = sources.filter((s) => !s.needs_manual_input && s.message);
+  const byLevel = (lv: RiskLevel) => comments.filter((c) => c.analysis?.level === lv);
+  const legal = byLevel('legal_review');
+  const context = byLevel('needs_context');
+  const low = byLevel('low_risk');
+  const analyzedCount = legal.length + context.length + low.length;
+  const pendingCount = comments.length - analyzedCount;
+
+  const renderReview = (c: CommentItem) => (
+    <CommentCard key={c.id} c={c} variant="review" source={srcById.get(c.source_id)} onPatch={(p) => patch(c.id, p)} />
+  );
+  const renderManual = (c: CommentItem) => (
+    <CommentCard
+      key={c.id}
+      c={c}
+      variant="extract"
+      source={srcById.get(c.source_id)}
+      checked={selected.has(c.id)}
+      onToggle={() => toggle(c.id)}
+      onPatch={(p) => patch(c.id, p)}
+    />
+  );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {notices.map((s) => (
+        <InfoBox key={s.id}>{s.message}</InfoBox>
+      ))}
       {manual.map((s) => (
         <InfoBox key={s.id} tone="warn">
           {s.url ? `${s.url} — ` : ''}
           {s.message ?? '자동 수집이 되지 않았습니다. 텍스트나 스크린샷으로 직접 입력해 주세요.'}
         </InfoBox>
       ))}
-
       {comments.length === 0 ? (
         <EmptyState
           icon={<Inbox className="h-5 w-5" aria-hidden />}
@@ -90,56 +144,65 @@ export default function CommentsPanel({ caseId, comments, sources, onChange, onG
         />
       ) : (
         <>
-          <div className="sticky top-16 z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand-100 bg-white p-3 shadow-card md:top-2">
-            <span className="text-sm text-ink-600">
-              댓글 {comments.length}개 · <b className="text-ink-900">{selected.size}개 선택</b> (최대 {MAX_BATCH})
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                className="min-h-10 px-3"
-                onClick={() => setSelected(selected.size ? new Set() : new Set(comments.slice(0, MAX_BATCH).map((c) => c.id)))}
-              >
-                {selected.size ? '선택 해제' : '전체 선택'}
-              </Button>
-              <Button className="min-h-10 px-3" busy={busy} busyLabel="판독 중…" disabled={!selected.size} onClick={() => void analyze()}>
-                AI 판독
-              </Button>
-            </div>
+          <div className="rounded-2xl border border-brand-100 bg-white p-4 shadow-card" aria-live="polite">
+            <p className="text-base font-bold text-ink-900">
+              전체 {comments.length.toLocaleString()}개 중 법적 검토 필요 {legal.length.toLocaleString()}개, 맥락 확인 {context.length.toLocaleString()}개
+            </p>
+            <p className="mt-1 text-xs text-ink-600">
+              위험 신호 낮음 {low.length.toLocaleString()}개
+              {pendingCount > 0 && ` · ${analyzing ? '판독 중' : '미판독'} ${pendingCount.toLocaleString()}개`}
+            </p>
           </div>
 
-          {analyzed.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-ink-600">
-              판독 완료 {analyzed.length}개
-              <span className="flex items-center gap-1">
-                <LevelBadge level="legal_review" /> {count('legal_review')}
-              </span>
-              <span className="flex items-center gap-1">
-                <LevelBadge level="needs_context" /> {count('needs_context')}
-              </span>
-              <span className="flex items-center gap-1">
-                <LevelBadge level="low_risk" /> {count('low_risk')}
-              </span>
-            </div>
+          {analyzedCount === 0 && !analyzing && (
+            <InfoBox>
+              {status?.running === false && pendingCount > 0
+                ? '아직 판독 결과가 없습니다. 위의 “전체 자동 판독” 버튼을 눌러 주세요.'
+                : '판독 결과가 아직 없습니다.'}
+            </InfoBox>
           )}
+
+          <Group level="legal_review" items={legal} render={renderReview} />
+          <Group level="needs_context" items={context} render={renderReview} />
+
+          {low.length > 0 && (
+            <details className="rounded-2xl border border-ink-200 bg-white p-4" onToggle={(e) => setLowOpen(e.currentTarget.open)}>
+              <summary className="cursor-pointer select-none text-sm font-semibold text-ink-700">
+                <LevelBadge level="low_risk" /> {low.length.toLocaleString()}개 (눌러서 펼치기)
+              </summary>
+              <div className="mt-3 space-y-3">{lowOpen && <CardList items={low} render={renderReview} />}</div>
+            </details>
+          )}
+
+          <details className="rounded-2xl border border-ink-200 bg-white p-4" onToggle={(e) => setManualOpen(e.currentTarget.open)}>
+            <summary className="cursor-pointer select-none text-sm font-semibold text-ink-700">직접 골라서 판독하기 (보조 기능)</summary>
+            {manualOpen && (
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand-100 bg-white p-3">
+                  <span className="text-sm text-ink-600">
+                    <b className="text-ink-900">{selected.size}개 선택</b> (최대 {MAX_BATCH})
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      className="min-h-10 px-3"
+                      onClick={() => setSelected(selected.size ? new Set() : new Set(comments.slice(0, MAX_BATCH).map((c) => c.id)))}
+                    >
+                      {selected.size ? '선택 해제' : `처음 ${MAX_BATCH}개 선택`}
+                    </Button>
+                    <Button className="min-h-10 px-3" busy={busy} busyLabel="판독 중…" disabled={!selected.size} onClick={() => void analyze()}>
+                      선택한 댓글 AI 판독
+                    </Button>
+                  </div>
+                </div>
+                <ErrorBox message={error} onClose={() => setError(null)} />
+                <CardList items={comments} render={renderManual} />
+              </div>
+            )}
+          </details>
         </>
       )}
-
-      <ErrorBox message={error} onClose={() => setError(null)} />
-
-      <ul className="space-y-3">
-        {comments.map((c) => (
-          <CommentCard
-            key={c.id}
-            c={c}
-            variant="extract"
-            source={srcById.get(c.source_id)}
-            checked={selected.has(c.id)}
-            onToggle={() => toggle(c.id)}
-            onPatch={(p) => patch(c.id, p)}
-          />
-        ))}
-      </ul>
+      {!manualOpen && <ErrorBox message={error} onClose={() => setError(null)} />}
       <Disclaimer />
     </div>
   );

@@ -28,7 +28,7 @@ GET 상세 예시:
 ## 2. 입력 → 댓글 추출
 | Method | Path | 요청 / 설명 |
 |---|---|---|
-| POST | `/cases/{case_id}/inputs/url` | JSON `{ "url":"https://www.youtube.com/watch?v=..." }` → 영상 ID 추출, YouTube 공개 댓글 최대 200개. 그 외 URL은 출처만 기록. |
+| POST | `/cases/{case_id}/inputs/url` | JSON `{ "url":"https://www.youtube.com/watch?v=..." }` → 영상 ID 추출, YouTube 공개 댓글을 최신순으로 `YOUTUBE_MAX_COMMENTS`개까지(답글 포함, 기본 10000, `0`=무제한). 그 외 URL은 출처만 기록. |
 | POST | `/cases/{case_id}/inputs/text` | JSON `{ "text":"...", "source_url":null, "context":null }` → 댓글 단위 추출; 사용자가 확인/수정 가능한 리스트 |
 | POST | `/cases/{case_id}/inputs/image` | `multipart/form-data`: `file`(필수), `source_url`(선택), `context`(선택); 파일 형식/10MB 제한 |
 
@@ -40,6 +40,7 @@ GET 상세 예시:
 }
 ```
 - source.type: `youtube | text | image | url_only`; 댓글이 0개일 수도 있음.
+- YouTube 입력 응답에는 최상위 필드 `total_available`(videos.list `commentCount`, 답글 포함 전체 댓글 수. 조회 실패·비공개 통계는 `null`)와 `notice`가 추가된다. `total_available`이 한도보다 크면 `notice`는 `"댓글이 4,000개라 최근 10,000개만 분석합니다."` 형식의 안내이고(같은 문구가 `source.message`에도 저장), 아니면 `null`. 다른 입력 종류에서는 둘 다 `null`.
 - YouTube API 실패: `503` 등 적절한 오류 응답 + 수동입력 안내. 외부 URL은 **스크래핑 없이 출처 URL만 저장**해 `type=url_only`, `needs_manual_input=true` 반환.
 - img에서 OCR로 찾지 못한 작성자/시각은 `null`, 없는 게시물 URL을 창작하지 말 것.
 
@@ -56,6 +57,21 @@ GET 상세 예시:
 ```
 - `legal_review | needs_context | low_risk` 중 하나; Gemini가 반환하더라도 서버에서 Pydantic 검증 및 재시도.
 - 원본 댓글 content는 판독 후 변경 금지. 사용자 확인은 법적 사실 확정이 아닌 '내용 확인' 표시.
+
+### 전체 자동 판독 (`/analyze`와 별개, `/analyze`는 선택 판독용으로 그대로 유지)
+| Method | Path | 요청 / 응답 |
+|---|---|---|
+| POST | `/cases/{case_id}/analyze-all` | 본문 없음. 아직 판독되지 않은 댓글 전체를 백그라운드로 판독 시작 → `202` + 아래 상태 객체. 이미 실행 중이면 새로 시작하지 않고 현재 상태만 반환. 판독할 댓글이 없으면 `running:false`. |
+| GET | `/cases/{case_id}/analyze-all/status` | 현재 상태 객체 |
+```json
+{"case_id":"case_1","running":true,"total":4000,"analyzed":1250,"pending":2750,"failed":0,
+ "counts":{"legal_review":40,"needs_context":95,"low_risk":1115},
+ "message":null,"error":null}
+```
+- `total`: 사건의 전체 댓글 수, `analyzed`/`counts`: DB에 저장된 판독 결과 기준. 이미 판독된 댓글은 다시 판독하지 않는다.
+- 50개 단위 배치, 동시에 최대 3개 배치. 속도 제한(429)은 5·10·20·40·60·60초 대기 후 재시도하고, 그래도 안 되면 해당 배치만 `failed`로 센다. 다시 `POST`하면 판독 안 된 댓글만 다시 시도한다.
+- `message`: 대기·일부 실패 안내(예: "N개는 판독하지 못했습니다. 다시 실행하면 남은 댓글만 판독합니다."), `error`: 실행이 끝난 뒤 첫 실패 원인(AI 모듈 미연결·키 오류 등).
+- 진행 상태(`running`, `failed`)는 서버 메모리에만 있다(로컬 단일 사용자 시연용). 서버를 재시작하면 `running:false`가 되며 `POST`로 이어서 판독한다.
 
 ## 4. 증거 보완
 | Method | Path | 설명 |

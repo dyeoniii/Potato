@@ -85,7 +85,7 @@ def test_limit_counts_replies():
     out = yt.fetch_youtube_comments(VID, limit=5, client=_client(handler))
     assert len(out) == 5
     big = yt.fetch_youtube_comments(VID, limit=1000, client=_client(handler))
-    assert len(big) == yt.MAX_COMMENTS
+    assert len(big) == 1000  # 예전 200 상한 없음
 
 
 @pytest.mark.parametrize(
@@ -129,3 +129,56 @@ def test_missing_key(monkeypatch):
 def test_bad_video_id(bad):
     with pytest.raises(ValueError):
         yt.fetch_youtube_comments(bad)
+
+
+def test_default_limit_from_env(monkeypatch):
+    def handler(req):
+        items = [_thread(f"T{i}", f"가상 {i}") for i in range(100)]
+        return httpx.Response(200, json={"items": items, "nextPageToken": "more"})
+
+    monkeypatch.delenv("YOUTUBE_MAX_COMMENTS", raising=False)
+    assert yt.get_max_comments() == 10000
+    monkeypatch.setenv("YOUTUBE_MAX_COMMENTS", "250")
+    assert yt.get_max_comments() == 250
+    assert len(yt.fetch_youtube_comments(VID, client=_client(handler))) == 250
+    monkeypatch.setenv("YOUTUBE_MAX_COMMENTS", "abc")
+    assert yt.get_max_comments() == 10000
+
+
+def test_zero_means_unlimited(monkeypatch):
+    pages = {"n": 0}
+
+    def handler(req):
+        pages["n"] += 1
+        items = [_thread(f"P{pages['n']}T{i}", f"가상 {i}") for i in range(100)]
+        body = {"items": items}
+        if pages["n"] < 30:  # 100개씩 30페이지 = 3,000개
+            body["nextPageToken"] = "more"
+        return httpx.Response(200, json=body)
+
+    monkeypatch.setenv("YOUTUBE_MAX_COMMENTS", "0")
+    assert yt.get_max_comments() == 0
+    assert len(yt.fetch_youtube_comments(VID, client=_client(handler))) == 3000
+    pages["n"] = 0
+    assert len(yt.fetch_youtube_comments(VID, limit=0, client=_client(handler))) == 3000
+
+
+def test_comment_count_uses_videos_statistics():
+    seen = {}
+
+    def handler(req):
+        seen["path"], seen["params"] = req.url.path, dict(req.url.params)
+        assert req.headers["X-Goog-Api-Key"] == FAKE_KEY
+        return httpx.Response(200, json={"items": [{"id": VID, "statistics": {"commentCount": "4000"}}]})
+
+    assert yt.fetch_youtube_comment_count(VID, client=_client(handler)) == 4000
+    assert seen["path"].endswith("/videos")
+    assert seen["params"] == {"part": "statistics", "id": VID}
+
+
+def test_comment_count_missing_or_video_not_found():
+    no_count = lambda req: httpx.Response(200, json={"items": [{"id": VID, "statistics": {}}]})
+    assert yt.fetch_youtube_comment_count(VID, client=_client(no_count)) is None
+    empty = lambda req: httpx.Response(200, json={"items": []})
+    with pytest.raises(yt.YouTubeNotFoundError):
+        yt.fetch_youtube_comment_count(VID, client=_client(empty))

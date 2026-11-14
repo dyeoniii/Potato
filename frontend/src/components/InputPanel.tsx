@@ -56,7 +56,8 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
       if (res.source.needs_manual_input) {
         setNotice(res.source.message ?? '자동 수집이 되지 않았습니다. 텍스트나 스크린샷으로 직접 입력해 주세요.');
       } else {
-        setNotice(`댓글 ${res.comments.length}개를 가져왔습니다.`);
+        const base = `댓글 ${res.comments.length.toLocaleString()}개를 가져왔습니다. AI 자동 판독을 시작합니다.`;
+        setNotice(res.notice ? `${res.notice} ${base}` : base);
       }
       reset();
       onDone(res);
@@ -147,7 +148,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
             />
           </label>
           <InfoBox>
-            YouTube 주소는 공개 댓글을 최대 200개까지 가져옵니다. 그 밖의 SNS는 주소만 출처로 저장하고 댓글은 직접 입력해야 합니다.
+            YouTube 주소는 공개 댓글을 최근 것부터 서버 설정 한도까지 가져옵니다(한도보다 많으면 안내가 표시됩니다). 그 밖의 SNS는 주소만 출처로 저장하고 댓글은 직접 입력해야 합니다.
           </InfoBox>
           <Button className="w-full" busy={busy} busyLabel="댓글 가져오는 중…" onClick={submitUrl}>
             댓글 가져오기

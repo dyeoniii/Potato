@@ -20,7 +20,7 @@ from app.schemas import InputResponse, TextInput, UrlInput
 logger = logging.getLogger("akpleguard.api")
 router = APIRouter(prefix="/cases/{case_id}/inputs", tags=["inputs"])
 
-YOUTUBE_LIMIT = 200
+DEFAULT_YOUTUBE_MAX_COMMENTS = 10000
 ALLOWED_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 MANUAL_HINT = "텍스트 붙여넣기 또는 스크린샷 업로드로 직접 입력해 주세요."
 
@@ -32,6 +32,18 @@ def _max_upload_bytes() -> int:
     except ValueError:
         mb = 10.0
     return int(mb * 1024 * 1024)
+
+
+def youtube_limit() -> int:
+    """환경변수 YOUTUBE_MAX_COMMENTS. 기본 10000, 0이면 무제한(0)."""
+    raw = (os.getenv("YOUTUBE_MAX_COMMENTS") or "").strip()
+    if not raw:
+        return DEFAULT_YOUTUBE_MAX_COMMENTS
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_YOUTUBE_MAX_COMMENTS
+    return value if value >= 0 else DEFAULT_YOUTUBE_MAX_COMMENTS
 
 
 def _sniff_image(data: bytes) -> tuple[str, str] | None:
@@ -223,8 +235,16 @@ def input_url(case_id: str, body: UrlInput, db: Session = Depends(get_db)) -> In
         )
         return _persist(db, case, source, [], platform="url_only")
 
+    limit = youtube_limit()
+    total_available: int | None = None
     try:
-        fetched = adapters.fetch_youtube_comments(video_id, YOUTUBE_LIMIT)
+        total_available = adapters.fetch_youtube_comment_count(video_id)
+    except Exception as exc:  # 개수 조회 실패는 수집을 막지 않는다(수집 단계에서 같은 원인이면 오류가 난다).
+        logger.warning("YouTube commentCount lookup failed: %s", safe_message(exc))
+    if not isinstance(total_available, int) or isinstance(total_available, bool) or total_available < 0:
+        total_available = None
+    try:
+        fetched = adapters.fetch_youtube_comments(video_id, limit)
     except adapters.ModuleNotConnectedError as exc:
         raise AppError(503, "MODULE_NOT_CONNECTED", f"{exc} {MANUAL_HINT}") from exc
     except Exception as exc:
@@ -232,11 +252,19 @@ def input_url(case_id: str, body: UrlInput, db: Session = Depends(get_db)) -> In
     if not isinstance(fetched, list):
         raise AppError(502, "COLLECTOR_INVALID", "YouTube 수집 결과 형식이 올바르지 않습니다.")
 
-    source = Source(type="youtube", url=url, collected_at=utcnow())
-    result = _persist(db, case, source, fetched[:YOUTUBE_LIMIT], platform="youtube")
+    notice = None
+    if limit > 0 and total_available is not None and total_available > limit:
+        notice = f"댓글이 {total_available:,}개라 최근 {limit:,}개만 분석합니다."
+    source = Source(type="youtube", url=url, collected_at=utcnow(), message=notice)
+    result = _persist(db, case, source, fetched if limit == 0 else fetched[:limit], platform="youtube")
+    result.total_available = total_available
+    result.notice = notice
     if not result.comments:
         source.needs_manual_input = True
         source.message = "가져온 댓글이 없습니다(댓글 없음 또는 비공개). " + MANUAL_HINT
         db.commit()
-        result = InputResponse.model_validate({"source": source, "comments": []}, from_attributes=True)
+        result = InputResponse.model_validate(
+            {"source": source, "comments": [], "total_available": total_available, "notice": None},
+            from_attributes=True,
+        )
     return result

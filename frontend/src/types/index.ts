@@ -67,6 +67,22 @@ export interface CaseDetail {
 export interface InputResponse {
   source: Source;
   comments: CommentItem[];
+  /** YouTube 전체 댓글 수(답글 포함). 알 수 없으면 null/없음 */
+  total_available?: number | null;
+  /** 수집 한도 초과 안내. 없으면 null */
+  notice?: string | null;
+}
+
+export interface AnalyzeAllStatus {
+  case_id: string;
+  running: boolean;
+  total: number;
+  analyzed: number;
+  pending: number;
+  failed: number;
+  counts: Record<RiskLevel, number>;
+  message: string | null;
+  error: string | null;
 }
 
 export interface ChecklistItem {

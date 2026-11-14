@@ -113,6 +113,26 @@ class AnalyzeResponse(BaseModel):
     results: list[AnalysisResult]
 
 
+class LevelCounts(BaseModel):
+    legal_review: int = 0
+    needs_context: int = 0
+    low_risk: int = 0
+
+
+class AnalyzeAllStatus(BaseModel):
+    """전체 자동 판독 진행 상황. 개수는 DB의 실제 판독 결과에서 센다."""
+
+    case_id: str
+    running: bool
+    total: int
+    analyzed: int
+    pending: int
+    failed: int = 0  # 이번 실행에서 판독하지 못한 댓글 수(다시 실행하면 재시도)
+    counts: LevelCounts
+    message: str | None = None  # 속도 제한 대기·실패 안내
+    error: str | None = None
+
+
 # ---------- 소스/댓글 ----------
 class SourceOut(ORMModel):
     id: str
@@ -171,6 +191,9 @@ class UrlInput(BaseModel):
 class InputResponse(BaseModel):
     source: SourceOut
     comments: list[CommentOut]
+    # YouTube 입력에서만 채워짐. 전체 댓글 수(videos.list commentCount)와 한도 초과 안내.
+    total_available: int | None = None
+    notice: str | None = None
 
 
 # ---------- 사건 상세 ----------

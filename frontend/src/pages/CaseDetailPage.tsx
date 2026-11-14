@@ -4,11 +4,13 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import CommentsPanel from '../components/CommentsPanel';
 import DocumentsPanel from '../components/DocumentsPanel';
+import AnalyzeProgress from '../components/AnalyzeProgress';
 import EvidencePanel from '../components/EvidencePanel';
 import InputPanel from '../components/InputPanel';
 import ReviewPanel from '../components/ReviewPanel';
 import { Button, Card, ConfirmModal, ErrorBox, InfoBox, LoadingBlock } from '../components/common';
 import { errMessage, formatKst } from '../lib/format';
+import { useAnalyzeAll } from '../lib/useAnalyzeAll';
 import type { CaseDetail, CommentItem, InputResponse } from '../types';
 
 type Tab = 'input' | 'comments' | 'evidence' | 'review' | 'docs';
@@ -38,9 +40,14 @@ export default function CaseDetailPage() {
     void load();
   }, [load]);
 
+  const analyzeAll = useAnalyzeAll(id, load);
+
   function onInput(res: InputResponse) {
     setData((d) => (d ? { ...d, sources: [...d.sources, res.source], comments: [...d.comments, ...res.comments] } : d));
-    if (res.comments.length > 0) setTab('comments');
+    if (res.comments.length > 0) {
+      setTab('comments');
+      void analyzeAll.start(); // 입력이 끝나면 판독 안 된 댓글 전체를 자동 판독
+    }
   }
 
   const setComments = (comments: CommentItem[]) => setData((d) => (d ? { ...d, comments } : d));
@@ -121,6 +128,7 @@ export default function CaseDetailPage() {
         ))}
       </nav>
 
+      <AnalyzeProgress status={analyzeAll.status} error={analyzeAll.error} onCloseError={analyzeAll.clearError} onStart={() => void analyzeAll.start()} />
       {tab === 'input' && (
         <>
           {sharedUrl && <InfoBox>공유받은 주소를 채웠습니다. 내용을 확인한 뒤 직접 “댓글 가져오기”를 눌러 주세요.</InfoBox>}
@@ -128,7 +136,15 @@ export default function CaseDetailPage() {
         </>
       )}
       {tab === 'comments' && (
-        <CommentsPanel caseId={data.id} comments={data.comments} sources={data.sources} onChange={setComments} onGoInput={() => setTab('input')} />
+        <CommentsPanel
+          caseId={data.id}
+          comments={data.comments}
+          sources={data.sources}
+          analyzing={analyzeAll.running}
+          status={analyzeAll.status}
+          onChange={setComments}
+          onGoInput={() => setTab('input')}
+        />
       )}
       {tab === 'evidence' && <EvidencePanel comments={data.comments} sources={data.sources} onChange={setComments} onGoComments={() => setTab('comments')} />}
       {tab === 'review' && <ReviewPanel

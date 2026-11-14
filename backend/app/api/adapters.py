@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 _TARGETS: dict[str, str] = {
     "detect_platform_and_id": "app.collectors.url_detect",
     "fetch_youtube_comments": "app.collectors.youtube",
+    "fetch_youtube_comment_count": "app.collectors.youtube",
     "extract_comments_from_image": "app.analysis.extract_image",
     "analyze_comments": "app.analysis.classify",
     "review_evidence": "app.analysis.agent_review",
@@ -104,6 +105,8 @@ def _stub_review_evidence(evidence: list[dict], answers: list[dict]) -> dict:
 _STUBS: dict[str, Callable[..., Any]] = {
     "detect_platform_and_id": _stub_detect_platform_and_id,
     "fetch_youtube_comments": _not_connected("YouTube 댓글 수집"),
+    # 전체 댓글 수를 알 수 없으면 None(수를 지어내지 않음)
+    "fetch_youtube_comment_count": lambda video_id: None,
     "extract_comments_from_image": _not_connected("이미지 댓글 추출"),
     "analyze_comments": _not_connected("AI 판독"),
     "review_evidence": _stub_review_evidence,
@@ -143,8 +146,13 @@ def detect_platform_and_id(url: str) -> dict:
     return _resolve("detect_platform_and_id")[0](url)
 
 
-def fetch_youtube_comments(video_id: str, limit: int = 200) -> list[dict]:
+def fetch_youtube_comments(video_id: str, limit: int | None = None) -> list[dict]:
+    """limit: None=환경변수 YOUTUBE_MAX_COMMENTS, 0=무제한."""
     return _resolve("fetch_youtube_comments")[0](video_id, limit)
+
+
+def fetch_youtube_comment_count(video_id: str) -> int | None:
+    return _resolve("fetch_youtube_comment_count")[0](video_id)
 
 
 def extract_comments_from_image(image_bytes: bytes, mime_type: str) -> list[dict]:

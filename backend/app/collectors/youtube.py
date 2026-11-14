@@ -1,7 +1,8 @@
 """YouTube Data API v3 공개 댓글 수집 (S4 [AI]).
 
 - 공식 API(commentThreads.list, comments.list)만 사용한다. 스크래핑 없음.
-- 최상위 댓글 + 가져올 수 있는 답글을 합산해 최대 ``limit``(상한 200)개.
+- 최상위 댓글 + 가져올 수 있는 답글을 합산해 최대 ``limit``개(최신순). 기본 한도는 환경변수
+  ``YOUTUBE_MAX_COMMENTS``(기본 10000, 0이면 무제한).
 - API 키는 환경변수 ``YOUTUBE_API_KEY``에서 읽고 ``X-Goog-Api-Key`` 헤더로만 보낸다
   (URL/로그/예외 메시지에 키가 포함되지 않도록).
 - 실패는 :class:`YouTubeError` 하위 예외로 올린다. ``code``/``http_status``/``message``를
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from typing import Any
 
 import httpx
@@ -24,14 +26,28 @@ __all__ = [
     "YouTubeForbiddenError",
     "YouTubeUpstreamError",
     "fetch_youtube_comments",
-    "MAX_COMMENTS",
+    "fetch_youtube_comment_count",
+    "get_max_comments",
+    "DEFAULT_MAX_COMMENTS",
 ]
 
 API_BASE = "https://www.googleapis.com/youtube/v3"
-MAX_COMMENTS = 200
+DEFAULT_MAX_COMMENTS = 10000
 _PAGE_SIZE = 100
 _TIMEOUT = httpx.Timeout(15.0)
 _VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+
+def get_max_comments() -> int:
+    """환경변수 ``YOUTUBE_MAX_COMMENTS``. 기본 10000, 0이면 무제한(0 반환). 잘못된 값은 기본값."""
+    raw = (os.environ.get("YOUTUBE_MAX_COMMENTS") or "").strip()
+    if not raw:
+        return DEFAULT_MAX_COMMENTS
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_MAX_COMMENTS
+    return value if value >= 0 else DEFAULT_MAX_COMMENTS
 
 
 class YouTubeError(Exception):
@@ -152,11 +168,14 @@ def _to_comment(item: dict, video_id: str, parent_external_id: str | None) -> di
 
 def fetch_youtube_comments(
     video_id: str,
-    limit: int = 200,
+    limit: int | None = None,
     *,
     client: httpx.Client | None = None,
 ) -> list[dict]:
     """공개 댓글을 최상위→해당 답글 순서로 최대 ``limit``개 반환한다.
+
+    ``limit``이 None이면 ``YOUTUBE_MAX_COMMENTS``, 0이면 무제한이다.
+    commentThreads 기본 정렬이 최신순이라 한도가 있으면 최근 댓글부터 채워진다.
 
     각 항목: ``content, author, posted_at, comment_url, parent_id, like_count``
     (+ ``platform="youtube"``, ``external_id``).
@@ -165,9 +184,12 @@ def fetch_youtube_comments(
     """
     if not isinstance(video_id, str) or not _VIDEO_ID_RE.match(video_id):
         raise ValueError("유효한 YouTube 영상 ID가 아닙니다.")
-    if not isinstance(limit, int) or limit < 1:
-        raise ValueError("limit은 1 이상이어야 합니다.")
-    limit = min(limit, MAX_COMMENTS)
+    if limit is None:
+        limit = get_max_comments()
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 0:
+        raise ValueError("limit은 0(무제한) 이상의 정수여야 합니다.")
+    if limit == 0:
+        limit = sys.maxsize
 
     api_key = os.environ.get("YOUTUBE_API_KEY", "").strip()
     if not api_key:
@@ -244,3 +266,30 @@ def _fetch_replies(
         page_token = data.get("nextPageToken")
         if not page_token:
             return
+
+
+def fetch_youtube_comment_count(video_id: str, *, client: httpx.Client | None = None) -> int | None:
+    """videos.list(part=statistics)로 영상의 전체 댓글 수(commentCount, 답글 포함)를 조회한다.
+
+    통계에 값이 없으면(댓글 비활성화 등) None. 실패는 YouTubeError로 올린다.
+    """
+    if not isinstance(video_id, str) or not _VIDEO_ID_RE.match(video_id):
+        raise ValueError("유효한 YouTube 영상 ID가 아닙니다.")
+    api_key = os.environ.get("YOUTUBE_API_KEY", "").strip()
+    if not api_key:
+        raise YouTubeConfigError("서버에 YouTube API 키가 설정되지 않았습니다.")
+    own_client = client is None
+    http = client or httpx.Client(timeout=_TIMEOUT)
+    try:
+        data = _get(http, "videos", {"part": "statistics", "id": video_id}, api_key)
+    finally:
+        if own_client:
+            http.close()
+    items = data.get("items") or []
+    if not items:
+        raise YouTubeNotFoundError()
+    raw = (items[0].get("statistics") or {}).get("commentCount")
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None

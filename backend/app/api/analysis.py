@@ -16,6 +16,25 @@ from app.schemas import AnalysisResult, AnalyzeRequest, AnalyzeResponse, Comment
 router = APIRouter(tags=["analysis"])
 
 
+def save_analysis(comment: Comment, result: AnalysisResult, analyzed_at) -> None:
+    """판독 결과를 댓글의 Analysis 행에 저장(없으면 생성, 있으면 덮어쓰기). 원문 content는 건드리지 않는다."""
+    data = dict(
+        level=result.level,
+        level_label=result.level_label,
+        issues=result.issues,
+        flagged_phrases=result.flagged_phrases,
+        reason=result.reason,
+        check_points=result.check_points,
+        disclaimer=result.disclaimer,
+        analyzed_at=analyzed_at,
+    )
+    if comment.analysis is None:
+        comment.analysis = Analysis(**data)
+    else:
+        for key, value in data.items():
+            setattr(comment.analysis, key, value)
+
+
 def _call_and_validate(payload: list[dict], context: str | None, allowed_ids: set[str]) -> list[AnalysisResult]:
     raw = adapters.analyze_comments(payload, context)
     if not isinstance(raw, list):
@@ -60,22 +79,7 @@ def analyze(case_id: str, body: AnalyzeRequest, db: Session = Depends(get_db)) -
     by_id = {c.id: c for c in comments}
     now = utcnow()
     for r in results:
-        comment = by_id[r.comment_id]
-        data = dict(
-            level=r.level,
-            level_label=r.level_label,
-            issues=r.issues,
-            flagged_phrases=r.flagged_phrases,
-            reason=r.reason,
-            check_points=r.check_points,
-            disclaimer=r.disclaimer,
-            analyzed_at=now,
-        )
-        if comment.analysis is None:
-            comment.analysis = Analysis(**data)
-        else:
-            for key, value in data.items():
-                setattr(comment.analysis, key, value)
+        save_analysis(by_id[r.comment_id], r, now)
     db.commit()
     return AnalyzeResponse(results=results)
 

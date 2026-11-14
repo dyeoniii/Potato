@@ -5,6 +5,7 @@ import {
   DISCLAIMER,
   LEVEL_LABEL,
   type Analysis,
+  type AnalyzeAllStatus,
   type AnswerItem,
   type CaseDetail,
   type CommentItem,
@@ -167,6 +168,26 @@ function ytId(url: string): string | null {
   return null;
 }
 
+// 전체 자동 판독 시뮬레이션: 300ms마다 50개씩 처리. 메모리에만 있는 진행 상태.
+const mockJobs = new Map<string, boolean>();
+
+function mockStatus(c: CaseDetail): AnalyzeAllStatus {
+  const counts = { legal_review: 0, needs_context: 0, low_risk: 0 };
+  for (const cm of c.comments) if (cm.analysis) counts[cm.analysis.level] += 1;
+  const analyzed = counts.legal_review + counts.needs_context + counts.low_risk;
+  return {
+    case_id: c.id,
+    running: mockJobs.get(c.id) === true,
+    total: c.comments.length,
+    analyzed,
+    pending: c.comments.length - analyzed,
+    failed: 0,
+    counts,
+    message: null,
+    error: null,
+  };
+}
+
 export const mockApi: Api = {
   async createCase({ title, description }) {
     if (!title.trim()) throw new ApiError('사건 제목을 입력해 주세요.', 'VALIDATION_ERROR', 422);
@@ -195,6 +216,8 @@ export const mockApi: Api = {
       const src = makeSource('youtube', url);
       res = {
         source: src,
+        total_available: 2,
+        notice: null,
         comments: [
           makeComment(src.id, '[목 데이터] 시연용 가상 댓글 1', 'youtube', { author: '예시계정A' }),
           makeComment(src.id, '[목 데이터] 그 사람은 사기꾼이다', 'youtube', { author: '예시계정B' }),
@@ -247,6 +270,25 @@ export const mockApi: Api = {
     });
     save();
     return wait({ results }, 600);
+  },
+  async analyzeAll(caseId) {
+    const c = findCase(caseId);
+    if (!mockJobs.get(caseId) && c.comments.some((x) => !x.analysis)) {
+      mockJobs.set(caseId, true);
+      const timer = setInterval(() => {
+        const pending = c.comments.filter((x) => !x.analysis).slice(0, 50);
+        for (const cm of pending) cm.analysis = mockAnalysis(cm.content);
+        if (c.comments.every((x) => x.analysis) || !db.cases.includes(c)) {
+          clearInterval(timer);
+          mockJobs.set(caseId, false);
+          save();
+        }
+      }, 300);
+    }
+    return wait(mockStatus(c), 50);
+  },
+  async analyzeAllStatus(caseId) {
+    return wait(mockStatus(findCase(caseId)), 50);
   },
   async patchComment(id, patch) {
     const cm = findComment(id);

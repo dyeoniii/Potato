@@ -9,8 +9,8 @@ export type CommentPatchFn = (p: Parameters<typeof api.patchComment>[1]) => Prom
 interface Props {
   c: CommentItem;
   source?: Source;
-  /** extract: 판독 대상 선택 목록, evidence: 증거함 */
-  variant: 'extract' | 'evidence';
+  /** extract: 수동 선택 판독 목록, review: 자동 판독 결과 목록(선택 없음), evidence: 증거함 */
+  variant: 'extract' | 'review' | 'evidence';
   checked?: boolean;
   onToggle?: () => void;
   onPatch: CommentPatchFn;
@@ -119,7 +119,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
           <p className="text-xs text-ink-600">AI 추정입니다. {a.disclaimer}</p>
         </div>
       ) : (
-        variant === 'evidence' && <p className="mt-3 rounded-xl bg-ink-50 p-3 text-xs text-ink-600">아직 AI 판독을 하지 않은 댓글입니다. 판독 탭에서 선택해 판독할 수 있습니다.</p>
+        variant === 'evidence' && <p className="mt-3 rounded-xl bg-ink-50 p-3 text-xs text-ink-600">아직 AI 판독을 하지 않은 댓글입니다. 판독 탭에서 자동 판독하거나 직접 선택해 판독할 수 있습니다.</p>
       )}
 
       <details open={variant === 'evidence'} className="group mt-4 border-t border-ink-100 pt-3">
