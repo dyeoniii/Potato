@@ -33,7 +33,7 @@ def test_shape_and_no_evidence():
     assert _item(r, "저장된 증거")["status"] == "missing"
     assert {q["id"] for q in r["questions"]} == {q[0] for q in BASE_QUESTIONS}
     for c in r["checklist"]:
-        assert set(c) == {"item", "status", "detail"} and c["status"] in ("done", "partial", "missing")
+        assert set(c) == {"item", "status", "detail"} and c["status"] in ("ok", "partial", "missing")
 
 
 def test_partial_counts():
@@ -51,6 +51,26 @@ def test_answers_raise_completeness_and_remove_questions():
     after = review_evidence([FULL], answers)
     assert after["completeness"] == 100 > before["completeness"]
     assert after["questions"] == []
+
+
+def test_flat_api_evidence_shape():
+    """S3 api/agent.py가 보내는 평면 dict 형식."""
+    flat = {
+        "comment_id": "cmt_9", "source_type": "image", "source_url": None, "file_sha256": "ab" * 32,
+        "collected_at": "2026-11-14T03:06:00Z", "platform": "image", "author": None, "content": "가상",
+        "posted_at": None, "comment_url": None, "user_confirmed": True, "analysis": None,
+    }
+    r = review_evidence([flat], [])
+    assert _item(r, "수집 시각·원본 해시")["status"] == "ok"
+    assert _item(r, "원본 게시글 URL")["status"] == "missing"
+
+
+def test_matches_api_schema_if_available():
+    import pytest
+
+    schemas = pytest.importorskip("app.schemas")
+    r = review_evidence([FULL, BARE], [{"question_id": "q1", "answer": "가상"}])
+    schemas.ReviewResponse.model_validate(r)
 
 
 def test_blank_and_unknown_answers_ignored():

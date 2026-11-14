@@ -1,7 +1,7 @@
 """증거 보완 체크리스트·질문 (S4 [AI]).
 
 P0는 템플릿 기반(LLM 호출 없음, 키 불필요, provider와 무관하게 동일 결과).
-``completeness``는 서비스 체크 항목 중 '완료(done)' 비율(0~100 정수)이며
+``completeness``는 서비스 체크 항목 중 '완료(ok)' 비율(0~100 정수)이며
 법적 충분성·소송 결과와 무관하다.
 """
 from __future__ import annotations
@@ -36,7 +36,7 @@ def _count_item(name: str, evidence: list[dict], has, missing_hint: str) -> dict
     if total == 0:
         return {"item": name, "status": "missing", "detail": "저장된 증거가 없습니다."}
     if ok == total:
-        return {"item": name, "status": "done", "detail": f"{total}건 모두 기록됨"}
+        return {"item": name, "status": "ok", "detail": f"{total}건 모두 기록됨"}
     status = "partial" if ok else "missing"
     return {"item": name, "status": status, "detail": f"{total}건 중 {total - ok}건 {missing_hint}"}
 
@@ -58,8 +58,9 @@ def review_evidence(evidence: list[dict], answers: list[dict]) -> dict:
 
     ``evidence``: 저장(saved=true)된 댓글 dict 목록. 사용하는 키(없으면 미기입 처리):
     ``author``, ``posted_at``(또는 ``posted_at_text``), ``comment_url``, ``analysis``,
-    ``user_confirmed``, 그리고 ``source_url``/``collected_at``/``file_sha256``/``type``
-    (최상위 또는 ``source`` 하위 dict).
+    ``user_confirmed``, ``source_type``/``platform``, 그리고
+    ``source_url``/``collected_at``/``file_sha256``/``type``(최상위 또는 ``source`` 하위 dict).
+    checklist status는 ``ok | partial | missing``.
     ``answers``: ``[{"question_id": "q1", "answer": "..."}]``.
     반환: ``{"completeness": int, "checklist": [...], "questions": [{"id", "question"}]}``
     ``questions``에는 아직 답하지 않은 질문만 포함된다.
@@ -73,14 +74,14 @@ def review_evidence(evidence: list[dict], answers: list[dict]) -> dict:
     def has_record(e: dict) -> bool:
         if not _get(e, "collected_at"):
             return False
-        if (_get(e, "type") or e.get("platform")) == "image":
+        if "image" in (_get(e, "type"), e.get("source_type"), e.get("platform")):
             return bool(_get(e, "file_sha256"))
         return True
 
     checklist: list[dict] = [
         {
             "item": "저장된 증거",
-            "status": "done" if evidence else "missing",
+            "status": "ok" if evidence else "missing",
             "detail": f"{len(evidence)}건 저장됨" if evidence else "증거함에 저장된 댓글이 없습니다.",
         },
         _count_item("작성자 정보", evidence, lambda e: bool(e.get("author")), "작성자 미확인"),
@@ -103,12 +104,12 @@ def review_evidence(evidence: list[dict], answers: list[dict]) -> dict:
         checklist.append(
             {
                 "item": item,
-                "status": "done" if qid in answered else "missing",
+                "status": "ok" if qid in answered else "missing",
                 "detail": "답변 작성됨" if qid in answered else "답변 필요",
             }
         )
 
-    done = sum(1 for c in checklist if c["status"] == "done")
+    done = sum(1 for c in checklist if c["status"] == "ok")
     completeness = round(100 * done / len(checklist)) if checklist else 0
 
     return {

@@ -32,7 +32,6 @@ MAX_COMMENTS = 200
 _PAGE_SIZE = 100
 _TIMEOUT = httpx.Timeout(15.0)
 _VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
-_MANUAL_HINT = " 텍스트 붙여넣기나 스크린샷 업로드로 직접 입력할 수 있습니다."
 
 
 class YouTubeError(Exception):
@@ -41,7 +40,8 @@ class YouTubeError(Exception):
     default_message = "YouTube 댓글을 가져오지 못했습니다."
 
     def __init__(self, message: str | None = None):
-        self.message = (message or self.default_message) + _MANUAL_HINT
+        # 수동 입력 안내 문구는 API 세션(inputs.py)이 덧붙인다.
+        self.message = message or self.default_message
         super().__init__(self.message)
 
 
