@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+backend/app/storage/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+frontend/dist/
+frontend/.vite/
+.kiro/cache/
+.DS_Store
