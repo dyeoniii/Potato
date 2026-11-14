@@ -67,7 +67,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
   );
 
   return (
-    <li className={`rounded-2xl border bg-white p-4 shadow-card sm:p-5 ${c.saved ? 'border-brand-400' : 'border-brand-100'}`}>
+    <li className={`card !p-4 sm:!p-5 ${c.saved ? '!border-brand-400' : ''}`}>
       {variant === 'extract' ? (
         <label className="flex cursor-pointer items-start gap-3">
           <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-brand-600" checked={checked} onChange={onToggle} aria-label="판독할 댓글 선택" />
@@ -150,7 +150,7 @@ export default function CommentCard({ c, source, variant, checked = false, onTog
 
       <Button
         variant={c.saved ? 'ghost' : 'primary'}
-        className={`mt-4 w-full ${c.saved ? '' : 'bg-brand-700 hover:bg-brand-800'}`}
+        className="mt-4 w-full"
         busy={pending}
         busyLabel="저장 중…"
         onClick={() => void patch({ saved: !c.saved })}

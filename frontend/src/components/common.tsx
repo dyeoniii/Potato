@@ -1,19 +1,21 @@
-import { CircleAlert, LoaderCircle, X } from 'lucide-react';
+import { CircleAlert, CircleCheck, Info, LoaderCircle, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { DISCLAIMER, LEVEL_LABEL, type RiskLevel } from '../types';
 
-const LEVEL_STYLE: Record<RiskLevel, string> = {
-  legal_review: 'bg-red-50 text-red-700 border-red-200',
-  needs_context: 'bg-amber-50 text-amber-800 border-amber-200',
-  low_risk: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+/* 공통 UI 컴포넌트. 색·크기·상태 스타일은 src/index.css 의 디자인 토큰과 .btn/.card/.field 등 공통 클래스가 정의합니다. */
+
+const LEVEL_CLASS: Record<RiskLevel, string> = {
+  legal_review: 'badge badge-legal',
+  needs_context: 'badge badge-context',
+  low_risk: 'badge badge-low',
 };
 
 export function LevelBadge({ level, label }: { level: RiskLevel; label?: string }) {
-  return (
-    <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${LEVEL_STYLE[level]}`}>
-      {label || LEVEL_LABEL[level]}
-    </span>
-  );
+  return <span className={LEVEL_CLASS[level]}>{label || LEVEL_LABEL[level]}</span>;
+}
+
+export function Badge({ tone = 'brand', children }: { tone?: 'brand' | 'neutral'; children: ReactNode }) {
+  return <span className={`badge ${tone === 'brand' ? 'badge-brand' : 'badge-neutral'}`}>{children}</span>;
 }
 
 export function Disclaimer({ className = '' }: { className?: string }) {
@@ -24,10 +26,23 @@ export function Disclaimer({ className = '' }: { className?: string }) {
   );
 }
 
+type Tone = 'error' | 'warn' | 'info' | 'success';
+const ALERT_ICON = { error: CircleAlert, warn: TriangleAlert, info: Info, success: CircleCheck } as const;
+
+export function Alert({ tone, children, role }: { tone: Tone; children: ReactNode; role?: string }) {
+  const Icon = ALERT_ICON[tone];
+  return (
+    <div role={role} className={`alert alert-${tone}`}>
+      <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
 export function ErrorBox({ message, onClose, onRetry }: { message: string | null; onClose?: () => void; onRetry?: () => void }) {
   if (!message) return null;
   return (
-    <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+    <div role="alert" className="alert alert-error">
       <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <span className="min-w-0 flex-1">{message}</span>
       {onRetry && (
@@ -44,39 +59,32 @@ export function ErrorBox({ message, onClose, onRetry }: { message: string | null
   );
 }
 
-export function InfoBox({ children, tone = 'info' }: { children: ReactNode; tone?: 'info' | 'warn' }) {
-  const cls = tone === 'warn' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-brand-200 bg-brand-50 text-brand-800';
-  return <div className={`rounded-xl border p-3 text-sm leading-relaxed ${cls}`}>{children}</div>;
+export function InfoBox({ children, tone = 'info' }: { children: ReactNode; tone?: 'info' | 'warn' | 'success' }) {
+  return <Alert tone={tone}>{children}</Alert>;
 }
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'ghost' | 'danger';
+  size?: 'md' | 'sm';
   busy?: boolean;
   busyLabel?: string;
 };
 
-export function Button({ variant = 'primary', busy, busyLabel = '처리 중…', className = '', children, disabled, ...rest }: BtnProps) {
-  const base =
-    'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed';
-  const v = {
-    primary: 'bg-brand-700 text-white hover:bg-brand-800 disabled:bg-ink-200 disabled:text-ink-600',
-    ghost: 'border border-ink-300 bg-white text-ink-800 hover:bg-ink-50 disabled:border-ink-200 disabled:bg-ink-100 disabled:text-ink-600',
-    danger: 'border border-red-300 bg-white text-red-700 hover:bg-red-50 disabled:border-ink-200 disabled:bg-ink-100 disabled:text-ink-600',
-  }[variant];
+export function Button({ variant = 'primary', size = 'md', busy, busyLabel = '처리 중…', className = '', children, disabled, ...rest }: BtnProps) {
+  const v = { primary: 'btn-primary', ghost: 'btn-secondary', danger: 'btn-danger' }[variant];
   return (
-    <button type="button" className={`${base} ${v} ${className}`} disabled={disabled || busy} aria-busy={busy || undefined} {...rest}>
+    <button type="button" className={`btn ${v} ${size === 'sm' ? 'btn-sm' : ''} ${className}`} disabled={disabled || busy} aria-busy={busy || undefined} {...rest}>
       {busy && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />}
       {busy ? busyLabel : children}
     </button>
   );
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-brand-100 bg-white shadow-card p-4 sm:p-5 ${className}`}>{children}</section>;
+export function Card({ children, className = '', compact }: { children: ReactNode; className?: string; compact?: boolean }) {
+  return <section className={`card ${compact ? 'card-compact' : ''} ${className}`}>{children}</section>;
 }
 
-export const inputCls =
-  'w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
+export const inputCls = 'field';
 
 export function PageHeader({ title, desc, action }: { title: string; desc?: string; action?: ReactNode }) {
   return (
@@ -90,10 +98,19 @@ export function PageHeader({ title, desc, action }: { title: string; desc?: stri
   );
 }
 
+export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <h2 className="text-base font-bold text-ink-900">{children}</h2>
+      {action}
+    </div>
+  );
+}
+
 export function EmptyState({ icon, title, desc, action }: { icon?: ReactNode; title: string; desc?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-brand-300 bg-white px-4 py-10 text-center">
-      {icon && <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600">{icon}</div>}
+    <div className="flex flex-col items-center gap-2 rounded-card border border-dashed border-brand-300 bg-white px-4 py-8 text-center">
+      {icon && <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-100 text-brand-700">{icon}</div>}
       <p className="font-semibold text-ink-900">{title}</p>
       {desc && <p className="max-w-sm text-sm text-ink-600">{desc}</p>}
       {action && <div className="mt-2">{action}</div>}
@@ -102,16 +119,35 @@ export function EmptyState({ icon, title, desc, action }: { icon?: ReactNode; ti
 }
 
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div aria-hidden className={`animate-pulse rounded-2xl bg-white/80 ${className}`} />;
+  return <div aria-hidden className={`animate-pulse rounded-card bg-white/80 ${className}`} />;
 }
 
 export function LoadingBlock({ label = '불러오는 중…' }: { label?: string }) {
   return (
     <div role="status" aria-live="polite" className="space-y-3">
       <span className="sr-only">{label}</span>
-      <Skeleton className="h-20" />
-      <Skeleton className="h-20" />
-      <Skeleton className="h-20" />
+      <Skeleton className="h-16" />
+      <Skeleton className="h-16" />
+    </div>
+  );
+}
+
+export interface TabItem<K extends string> {
+  key: K;
+  label: string;
+  count?: number;
+}
+
+/** 탭/세그먼트. 선택 상태는 aria-selected 로 표현하고 스타일은 .tab 이 정의합니다. */
+export function TabBar<K extends string>({ items, value, onChange, label, inset }: { items: TabItem<K>[]; value: K; onChange: (k: K) => void; label: string; inset?: boolean }) {
+  return (
+    <div role="tablist" aria-label={label} className={`tabs ${inset ? 'tabs-inset' : ''}`} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+      {items.map((t) => (
+        <button key={t.key} role="tab" type="button" aria-selected={value === t.key} onClick={() => onChange(t.key)} className="tab">
+          {t.label}
+          {t.count !== undefined && t.count > 0 && <span className="tab-count">{t.count}</span>}
+        </button>
+      ))}
     </div>
   );
 }
@@ -147,43 +183,23 @@ export function ConfirmModal({ open, title, message, confirmLabel = '삭제', bu
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-sm space-y-3 rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-sm space-y-3 rounded-card bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-title" className="text-lg font-bold text-ink-900">
           {title}
         </h2>
-        <div className="text-sm leading-relaxed text-ink-600">{message}</div>
+        <div className="text-sm leading-relaxed text-ink-700">{message}</div>
         <div className="flex gap-2 pt-1">
-          <button
-            ref={cancelRef}
-            type="button"
-            disabled={busy}
-            onClick={onCancel}
-            className="min-h-11 flex-1 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 disabled:bg-ink-100 disabled:text-ink-600"
-          >
+          <button ref={cancelRef} type="button" disabled={busy} onClick={onCancel} className="btn btn-secondary flex-1">
             취소
           </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onConfirm}
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:bg-ink-200 disabled:text-ink-600"
-          >
+          <button type="button" disabled={busy} onClick={onConfirm} className="btn btn-danger-solid flex-1">
             {busy && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />}
             {busy ? '삭제 중…' : confirmLabel}
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <h2 className="text-base font-bold text-ink-900">{children}</h2>
-      {action}
     </div>
   );
 }

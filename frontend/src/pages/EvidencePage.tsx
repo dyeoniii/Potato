@@ -42,7 +42,7 @@ export default function EvidencePage() {
           title="저장된 증거가 없습니다"
           desc="사건의 판독 탭에서 보관할 댓글을 ‘증거함에 저장’해 주세요."
           action={
-            <Link to={summaries && summaries.length ? '/cases' : '/analyze'} className="inline-flex min-h-11 items-center rounded-xl bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-800">
+            <Link to={summaries && summaries.length ? '/cases' : '/analyze'} className="btn btn-primary">
               {summaries && summaries.length ? '내 사건 보기' : '악플 판독 시작하기'}
             </Link>
           }

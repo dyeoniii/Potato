@@ -1,7 +1,7 @@
 import { Archive, ArrowRight, FileSearch, FolderOpen, ScanSearch, Scale } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Card, Disclaimer, EmptyState, ErrorBox, LevelBadge, SectionTitle, Skeleton } from '../components/common';
+import { Badge, Card, Disclaimer, EmptyState, ErrorBox, LevelBadge, SectionTitle, Skeleton } from '../components/common';
 import { formatKst } from '../lib/format';
 import { useCaseDetails } from '../lib/useCaseDetails';
 import { LEVEL_LABEL, type RiskLevel } from '../types';
@@ -82,7 +82,7 @@ export default function DashboardPage() {
                       <span className="block truncate font-semibold">{c.title}</span>
                       <span className="block text-xs text-ink-600">{formatKst(c.created_at)}</span>
                     </span>
-                    <span className="shrink-0 rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-brand-800">증거 {c.saved_count}건</span>
+                    <Badge>증거 {c.saved_count}건</Badge>
                   </Link>
                 </li>
               ))}
@@ -158,7 +158,7 @@ export default function DashboardPage() {
 
 function Stat({ icon, label, value, note }: { icon: ReactNode; label: string; value: number | null; note: string }) {
   return (
-    <Card className="!p-4">
+    <Card compact>
       <div className="flex items-center gap-2 text-sm font-semibold text-ink-700">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100 text-brand-700">{icon}</span>
         {label}

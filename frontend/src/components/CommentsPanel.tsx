@@ -90,19 +90,19 @@ export default function CommentsPanel({ caseId, comments, sources, onChange, onG
         />
       ) : (
         <>
-          <div className="sticky top-16 z-10 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand-100 bg-white p-3 shadow-card md:top-2">
+          <div className="sticky top-16 z-10 flex flex-wrap items-center justify-between gap-2 card card-compact !p-3 md:top-2">
             <span className="text-sm text-ink-600">
               댓글 {comments.length}개 · <b className="text-ink-900">{selected.size}개 선택</b> (최대 {MAX_BATCH})
             </span>
             <div className="flex gap-2">
               <Button
                 variant="ghost"
-                className="min-h-10 px-3"
+                size="sm"
                 onClick={() => setSelected(selected.size ? new Set() : new Set(comments.slice(0, MAX_BATCH).map((c) => c.id)))}
               >
                 {selected.size ? '선택 해제' : '전체 선택'}
               </Button>
-              <Button className="min-h-10 px-3" busy={busy} busyLabel="판독 중…" disabled={!selected.size} onClick={() => void analyze()}>
+              <Button size="sm" busy={busy} busyLabel="판독 중…" disabled={!selected.size} onClick={() => void analyze()}>
                 AI 판독
               </Button>
             </div>
