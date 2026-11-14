@@ -1,0 +1,156 @@
+import { useState } from 'react';
+import type { api } from '../api';
+import { formatKst } from '../lib/format';
+import type { CommentItem, Source } from '../types';
+import { Button, LevelBadge, inputCls } from './common';
+
+export type CommentPatchFn = (p: Parameters<typeof api.patchComment>[1]) => Promise<void>;
+
+interface Props {
+  c: CommentItem;
+  source?: Source;
+  /** extract: 판독 대상 선택 목록, evidence: 증거함 */
+  variant: 'extract' | 'evidence';
+  checked?: boolean;
+  onToggle?: () => void;
+  onPatch: CommentPatchFn;
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-ink-500">{title}</p>
+      <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+export default function CommentCard({ c, source, variant, checked = false, onToggle, onPatch }: Props) {
+  const [note, setNote] = useState(c.user_note ?? '');
+  const [pending, setPending] = useState(false);
+  const a = c.analysis;
+  const origin = c.comment_url ?? source?.url ?? null;
+
+  async function patch(p: Parameters<CommentPatchFn>[0]) {
+    setPending(true);
+    try {
+      await onPatch(p);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const body = (
+    <div className="min-w-0 flex-1">
+      <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{c.content}</p>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-500">
+        <dt>작성자</dt>
+        <dd>{c.author ?? '확인되지 않음'}</dd>
+        <dt>작성 시각</dt>
+        <dd>{formatKst(c.posted_at)}</dd>
+        <dt>출처</dt>
+        <dd className="break-all">{origin ?? '확인되지 않음'}</dd>
+        {source && (
+          <>
+            <dt>수집 시각</dt>
+            <dd>{formatKst(source.collected_at)}</dd>
+          </>
+        )}
+        {source?.file_sha256 && (
+          <>
+            <dt>SHA-256</dt>
+            <dd className="break-all font-mono">{source.file_sha256}</dd>
+          </>
+        )}
+      </dl>
+    </div>
+  );
+
+  return (
+    <li className={`rounded-2xl border bg-white p-4 shadow-sm sm:p-5 ${c.saved ? 'border-brand-300' : 'border-ink-200'}`}>
+      {variant === 'extract' ? (
+        <label className="flex cursor-pointer items-start gap-3">
+          <input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-brand-600" checked={checked} onChange={onToggle} aria-label="판독할 댓글 선택" />
+          {body}
+        </label>
+      ) : (
+        <div className="flex">{body}</div>
+      )}
+
+      {a ? (
+        <div className="mt-4 space-y-3 rounded-xl bg-ink-50 p-3.5 text-sm">
+          <Section title="위험 신호 분류">
+            <LevelBadge level={a.level} label={a.level_label} />
+          </Section>
+          {a.issues.length > 0 && (
+            <Section title="법적 검토 쟁점">
+              <div className="flex flex-wrap gap-1.5">
+                {a.issues.map((i) => (
+                  <span key={i} className="rounded-lg border border-ink-200 bg-white px-2 py-0.5 text-xs font-medium">
+                    {i}
+                  </span>
+                ))}
+              </div>
+            </Section>
+          )}
+          {a.flagged_phrases.length > 0 && (
+            <Section title="문제 표현">
+              <p>{a.flagged_phrases.map((p) => `“${p}”`).join(', ')}</p>
+            </Section>
+          )}
+          <Section title="판단 근거">
+            <p className="leading-relaxed">{a.reason}</p>
+          </Section>
+          {a.check_points.length > 0 && (
+            <Section title="추가 확인 사항">
+              <ul className="list-disc space-y-0.5 pl-5">
+                {a.check_points.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </Section>
+          )}
+          <p className="text-xs text-ink-500">AI 추정입니다. {a.disclaimer}</p>
+        </div>
+      ) : (
+        variant === 'evidence' && <p className="mt-3 rounded-xl bg-ink-50 p-3 text-xs text-ink-500">아직 AI 판독을 하지 않은 댓글입니다. 판독 탭에서 선택해 판독할 수 있습니다.</p>
+      )}
+
+      <details open={variant === 'evidence'} className="group mt-4 border-t border-ink-100 pt-3">
+        <summary className="cursor-pointer select-none text-sm font-semibold text-ink-600">
+          메모 · 확인 {c.user_confirmed && <span className="ml-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">내용 확인함</span>}
+        </summary>
+        <div className="mt-2 space-y-3">
+          <textarea
+            className={`${inputCls} min-h-16`}
+            placeholder="메모 (사용자 입력)"
+            aria-label="메모"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            onBlur={() => note !== (c.user_note ?? '') && void patch({ user_note: note || null })}
+          />
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-brand-600"
+              checked={c.user_confirmed}
+              disabled={pending}
+              onChange={(e) => void patch({ user_confirmed: e.target.checked })}
+            />
+            원본과 비교해 내용을 확인했습니다
+          </label>
+        </div>
+      </details>
+
+      <Button
+        variant={c.saved ? 'ghost' : 'primary'}
+        className="mt-3 w-full"
+        busy={pending}
+        busyLabel="저장 중…"
+        onClick={() => void patch({ saved: !c.saved })}
+      >
+        {c.saved ? '증거함에서 빼기' : '증거함에 저장'}
+      </Button>
+    </li>
+  );
+}

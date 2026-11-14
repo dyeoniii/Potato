@@ -2,19 +2,28 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { errMessage } from '../lib/format';
 import type { AnswerItem, ReviewResponse } from '../types';
-import { Button, Card, ErrorBox, InfoBox, inputCls } from './common';
+import { Button, Card, ErrorBox, InfoBox, LoadingBlock, inputCls } from './common';
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  ok: { label: '완료', cls: 'bg-emerald-100 text-emerald-800' },
-  partial: { label: '일부 누락', cls: 'bg-amber-100 text-amber-800' },
-  missing: { label: '누락', cls: 'bg-red-100 text-red-800' },
+  ok: { label: '완료', cls: 'bg-emerald-50 text-emerald-700' },
+  partial: { label: '일부 누락', cls: 'bg-amber-50 text-amber-800' },
+  missing: { label: '누락', cls: 'bg-red-50 text-red-700' },
 };
 
-export default function ReviewPanel({ caseId, savedAnswers }: { caseId: string; savedAnswers: AnswerItem[] }) {
+export default function ReviewPanel({
+  caseId,
+  savedAnswers,
+  onSaved,
+}: {
+  caseId: string;
+  savedAnswers: AnswerItem[];
+  onSaved?: (answers: AnswerItem[]) => void;
+}) {
   const [review, setReview] = useState<ReviewResponse | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>(() => Object.fromEntries(savedAnswers.map((a) => [a.question_id, a.answer])));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -39,8 +48,11 @@ export default function ReviewPanel({ caseId, savedAnswers }: { caseId: string; 
     if (!list.length) return setError('답변을 하나 이상 입력해 주세요.');
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       setReview(await api.agentAnswers(caseId, list));
+      onSaved?.(list);
+      setNotice('답변을 저장했습니다.');
     } catch (e) {
       setError(errMessage(e));
     } finally {
@@ -50,31 +62,31 @@ export default function ReviewPanel({ caseId, savedAnswers }: { caseId: string; 
 
   return (
     <div className="space-y-3">
-      <ErrorBox message={error} onClose={() => setError(null)} />
-      {!review && busy && <p className="text-sm text-slate-500">불러오는 중…</p>}
+      <ErrorBox message={error} onClose={() => setError(null)} onRetry={!review ? () => void load() : undefined} />
+      {!review && busy && <LoadingBlock />}
       {review && (
         <>
           <Card>
             <div className="flex items-baseline justify-between">
               <h3 className="font-semibold">항목 작성률</h3>
-              <span className="text-2xl font-bold text-indigo-700">{review.completeness}%</span>
+              <span className="text-2xl font-bold text-brand-700">{review.completeness}%</span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded bg-slate-200">
-              <div className="h-full bg-indigo-600" style={{ width: `${Math.min(100, Math.max(0, review.completeness))}%` }} />
+            <div className="mt-2 h-2 overflow-hidden rounded bg-ink-200">
+              <div className="h-full bg-brand-600" style={{ width: `${Math.min(100, Math.max(0, review.completeness))}%` }} />
             </div>
-            <p className="mt-2 text-xs text-slate-500">서비스 내 체크 항목을 채운 비율입니다. 소송 성공 가능성이나 증거의 법적 충분성을 뜻하지 않습니다.</p>
+            <p className="mt-2 text-xs text-ink-500">서비스 내 체크 항목을 채운 비율입니다. 소송 성공 가능성이나 증거의 법적 충분성을 뜻하지 않습니다.</p>
           </Card>
 
           <Card>
             <h3 className="mb-2 font-semibold">체크리스트</h3>
             <ul className="space-y-2">
               {review.checklist.map((c) => {
-                const s = STATUS[c.status] ?? { label: c.status, cls: 'bg-slate-100 text-slate-700' };
+                const s = STATUS[c.status] ?? { label: c.status, cls: 'bg-ink-100 text-ink-700' };
                 return (
                   <li key={c.item} className="flex items-start justify-between gap-2 text-sm">
                     <div>
                       <p className="font-medium">{c.item}</p>
-                      <p className="text-xs text-slate-500">{c.detail}</p>
+                      <p className="text-xs text-ink-500">{c.detail}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>
                   </li>
@@ -95,21 +107,22 @@ export default function ReviewPanel({ caseId, savedAnswers }: { caseId: string; 
             {Object.entries(answers)
               .filter(([id, v]) => v && !review.questions.some((q) => q.id === id))
               .map(([id, v]) => (
-                <p key={id} className="rounded bg-slate-50 p-2 text-sm">
-                  <span className="text-xs text-slate-500">저장된 답변 ({id})</span>
+                <p key={id} className="rounded bg-ink-50 p-2 text-sm">
+                  <span className="text-xs text-ink-500">저장된 답변 ({id})</span>
                   <br />
                   {v}
                 </p>
               ))}
+            {notice && <InfoBox>{notice}</InfoBox>}
             {review.questions.length > 0 && (
-              <Button className="w-full" busy={busy} onClick={() => void submit()}>
+              <Button className="w-full" busy={busy} busyLabel="저장 중…" onClick={() => void submit()}>
                 답변 저장
               </Button>
             )}
           </Card>
         </>
       )}
-      <Button variant="ghost" className="w-full" busy={busy} onClick={() => void load()}>
+      <Button variant="ghost" className="w-full" busy={busy} busyLabel="확인 중…" onClick={() => void load()}>
         다시 확인
       </Button>
     </div>
