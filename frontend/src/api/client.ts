@@ -28,7 +28,21 @@ async function raw(path: string, init?: RequestInit): Promise<Response> {
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await raw(path, init);
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  // 8000 포트에 다른 서버(HTML 반환)가 떠 있으면 res.json()이 브라우저 고유 SyntaxError를 던진다.
+  // (Safari: "The string did not match the expected pattern.") 원인을 알 수 있게 변환한다.
+  const type = res.headers.get('Content-Type') ?? '';
+  if (!type.toLowerCase().includes('json')) {
+    throw new ApiError(
+      `API가 JSON이 아닌 응답(${type || '타입 없음'})을 반환했습니다. 8000 포트의 서버가 악플가드 백엔드가 맞는지 확인하거나 VITE_USE_MOCK=true로 실행하세요.`,
+      'INVALID_RESPONSE',
+      res.status,
+    );
+  }
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new ApiError('API 응답을 JSON으로 해석하지 못했습니다.', 'INVALID_RESPONSE', res.status);
+  }
 }
 
 const jsonInit = (method: string, body: unknown): RequestInit => ({
