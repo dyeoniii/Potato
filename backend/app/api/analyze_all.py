@@ -30,8 +30,8 @@ from app.schemas import AnalysisResult, AnalyzeAllStatus, LevelCounts
 logger = logging.getLogger("akpleguard.api")
 router = APIRouter(tags=["analysis"])
 
-BATCH_SIZE = 50
-MAX_CONCURRENT_BATCHES = 3
+BATCH_SIZE = 15
+MAX_CONCURRENT_BATCHES = 2
 # 429 재시도 대기(초). 소진되면 해당 배치는 실패로 처리한다.
 RATE_LIMIT_WAITS: tuple[float, ...] = (5, 10, 20, 40, 60, 60)
 _FATAL_CODES = {"LLM_CONFIG_ERROR"}

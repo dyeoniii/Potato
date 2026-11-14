@@ -24,20 +24,20 @@ def test_stop_finishes_running_batches_and_skips_the_rest_then_resumes(client, m
 
     monkeypatch.setattr(adapters, "analyze_comments", analyzer)
     cid = mk_case(client)
-    add_text(client, cid, make_lines(250))  # 50개 배치 5개, 동시 3개
+    add_text(client, cid, make_lines(250))  # 15개 배치 17개, 동시 2개
     client.post(f"/api/cases/{cid}/analyze-all")
     deadline = time.time() + 5
-    while state["calls"] < 3 and time.time() < deadline:
+    while state["calls"] < 2 and time.time() < deadline:
         time.sleep(0.01)
-    assert state["calls"] == 3
+    assert state["calls"] == 2
 
     r = client.post(f"/api/cases/{cid}/analyze-all/stop")
     assert r.status_code == 200 and r.json()["running"] is True and r.json()["stopping"] is True
     gate.set()
     s = wait_done(client, cid)
-    assert state["calls"] == 3  # 새 배치는 시작하지 않음
-    assert s["analyzed"] == 150 and s["pending"] == 100 and s["failed"] == 0 and s["stopping"] is False
-    assert "중단" in s["message"] and "100" in s["message"]
+    assert state["calls"] == 2  # 새 배치는 시작하지 않음
+    assert s["analyzed"] == 30 and s["pending"] == 220 and s["failed"] == 0 and s["stopping"] is False
+    assert "중단" in s["message"] and "220" in s["message"]
 
     monkeypatch.setattr(adapters, "analyze_comments", fake_analyze)  # 이어서 판독
     client.post(f"/api/cases/{cid}/analyze-all")
