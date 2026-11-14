@@ -115,7 +115,7 @@ export default function CaseDetailPage() {
           >
             {t.label}
             {t.badge !== undefined && t.badge > 0 && (
-              <span className={`rounded-full px-1.5 text-xs ${tab === t.key ? 'bg-white/25 text-white' : 'bg-ink-100 text-ink-700'}`}>{t.badge}</span>
+              <span className={`rounded-full px-1.5 text-xs ${tab === t.key ? 'bg-white text-brand-800' : 'bg-ink-100 text-ink-700'}`}>{t.badge}</span>
             )}
           </button>
         ))}

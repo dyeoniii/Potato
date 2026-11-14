@@ -57,11 +57,11 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function Button({ variant = 'primary', busy, busyLabel = '처리 중…', className = '', children, disabled, ...rest }: BtnProps) {
   const base =
-    'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50';
+    'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed';
   const v = {
-    primary: 'bg-brand-700 text-white hover:bg-brand-800',
-    ghost: 'border border-ink-300 bg-white text-ink-800 hover:bg-ink-50',
-    danger: 'border border-red-200 bg-white text-red-600 hover:bg-red-50',
+    primary: 'bg-brand-700 text-white hover:bg-brand-800 disabled:bg-ink-200 disabled:text-ink-600',
+    ghost: 'border border-ink-300 bg-white text-ink-800 hover:bg-ink-50 disabled:border-ink-200 disabled:bg-ink-100 disabled:text-ink-600',
+    danger: 'border border-red-300 bg-white text-red-700 hover:bg-red-50 disabled:border-ink-200 disabled:bg-ink-100 disabled:text-ink-600',
   }[variant];
   return (
     <button type="button" className={`${base} ${v} ${className}`} disabled={disabled || busy} aria-busy={busy || undefined} {...rest}>
@@ -76,7 +76,7 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
 }
 
 export const inputCls =
-  'w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
+  'w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100';
 
 export function PageHeader({ title, desc, action }: { title: string; desc?: string; action?: ReactNode }) {
   return (
@@ -160,7 +160,7 @@ export function ConfirmModal({ open, title, message, confirmLabel = '삭제', bu
             type="button"
             disabled={busy}
             onClick={onCancel}
-            className="min-h-11 flex-1 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50"
+            className="min-h-11 flex-1 rounded-xl border border-ink-200 bg-white text-sm font-semibold text-ink-700 hover:bg-ink-50 disabled:bg-ink-100 disabled:text-ink-600"
           >
             취소
           </button>
@@ -168,7 +168,7 @@ export function ConfirmModal({ open, title, message, confirmLabel = '삭제', bu
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:bg-ink-200 disabled:text-ink-600"
           >
             {busy && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden />}
             {busy ? '삭제 중…' : confirmLabel}

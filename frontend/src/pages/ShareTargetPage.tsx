@@ -65,7 +65,7 @@ export default function ShareTargetPage() {
           </Button>
         ))}
       </Card>
-      <Link to="/" className="block text-sm font-semibold text-brand-600">
+      <Link to="/" className="block text-sm font-semibold text-brand-700">
         ← 사건 목록
       </Link>
     </div>

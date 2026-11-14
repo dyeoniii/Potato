@@ -37,12 +37,12 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-ink-600">악성 댓글을 확인하고, 증거를 정리하고, 대응 문서를 준비하세요.</p>
       </div>
 
-      <section className="flex flex-col items-start gap-4 rounded-2xl bg-brand-700 p-5 text-white shadow-card sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <section className="cta-card flex flex-col items-start gap-4 rounded-2xl p-5 shadow-card sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h2 className="text-lg font-bold">악플 판독 시작하기</h2>
-          <p className="mt-1 text-sm text-brand-100">댓글을 입력하면 AI가 위험 신호를 알려 드립니다. 결정은 사용자가 합니다.</p>
+          <h2 className="cta-title text-lg font-bold">악플 판독 시작하기</h2>
+          <p className="cta-desc mt-1 text-sm">댓글을 입력하면 AI가 위험 신호를 알려 드립니다. 결정은 사용자가 합니다.</p>
         </div>
-        <Link to="/analyze" className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-brand-800 hover:bg-brand-50">
+        <Link to="/analyze" className="cta-btn shrink-0">
           <ScanSearch className="h-4 w-4" aria-hidden />
           판독 시작하기
           <ArrowRight className="h-4 w-4" aria-hidden />
