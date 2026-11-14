@@ -57,7 +57,7 @@ export default function InputPanel({ caseId, initialUrl = '', onDone }: Props) {
         setNotice(res.source.message ?? '자동 수집이 되지 않았습니다. 텍스트나 스크린샷으로 직접 입력해 주세요.');
       } else {
         const base = `댓글 ${res.comments.length.toLocaleString()}개를 가져왔습니다. AI 자동 판독을 시작합니다.`;
-        setNotice(res.notice ? `${res.notice} ${base}` : base);
+        setNotice(res.notice ? `${res.notice}. ${base}` : base);
       }
       reset();
       onDone(res);

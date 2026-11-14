@@ -28,7 +28,7 @@ ALLOWED_ISSUES = (
     "협박성 표현",
     "기타",
 )
-MAX_BATCH = 20
+MAX_BATCH = 50
 _MAX_CONTENT_CHARS = 5000
 _MAX_CONTEXT_CHARS = 3000
 
@@ -185,7 +185,7 @@ def analyze_comments(comments: list[dict], context: str | None = None) -> list[d
 
     입력 각 dict는 ``id``(또는 ``comment_id``)와 ``content`` 필수.
     반환 순서는 입력 순서와 같고, 각 결과는 api-contract의 analyze results 항목 형태.
-    20건 초과 시 내부에서 20건 단위로 나눠 호출한다.
+    50건 초과 시 내부에서 50건 단위로 나눠 호출한다(배치 하나가 모델 호출 1번).
     """
     items = _normalize_input(comments)
     results: list[dict] = []

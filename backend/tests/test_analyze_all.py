@@ -260,7 +260,7 @@ def test_youtube_input_reports_total_available_and_limit_notice(client, monkeypa
     body = r.json()
     assert r.status_code == 200 and seen["limit"] == 5
     assert body["total_available"] == 4000 and len(body["comments"]) == 5
-    assert body["notice"] == "댓글이 4,000개라 최근 5개만 분석합니다."
+    assert body["notice"] == "댓글이 4,000개라 최근 5개만 분석합니다"
     assert body["source"]["message"] == body["notice"]  # 사건 상세에서도 보이도록 저장
 
 

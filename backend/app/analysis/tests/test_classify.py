@@ -41,8 +41,8 @@ def test_mock_is_deterministic(mock_mode):
     assert classify.analyze_comments(COMMENTS) == classify.analyze_comments(COMMENTS)
 
 
-def test_batches_over_20(mock_mode):
-    many = [{"id": f"cmt_{i}", "content": f"가상 댓글 {i}"} for i in range(45)]
+def test_batches_over_50(mock_mode):
+    many = [{"id": f"cmt_{i}", "content": f"가상 댓글 {i}"} for i in range(120)]
     out = classify.analyze_comments(many)
     assert [r["comment_id"] for r in out] == [c["id"] for c in many]
 
@@ -149,3 +149,23 @@ def test_default_model(monkeypatch):
     assert llm.get_model_name() == llm.DEFAULT_MODEL
     monkeypatch.setenv("LLM_MODEL", "gemini-custom")
     assert llm.get_model_name() == "gemini-custom"
+
+
+@pytest.mark.parametrize("n,expected_calls", [(50, 1), (51, 2), (120, 3)])
+def test_gemini_call_per_50_comments(monkeypatch, n, expected_calls):
+    """analyze-all 배치(50개) 하나가 Gemini 호출 1번이 되는지 확인."""
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    sizes = []
+
+    def fake(prompt, system_instruction, image_bytes, mime_type):
+        data = json.loads(prompt.split("<data>\n")[1].split("\n</data>")[0])
+        ids = [c["comment_id"] for c in data["comments"]]
+        sizes.append(len(ids))
+        return json.dumps(
+            {"results": [{"comment_id": i, "level": "low_risk", "reason": "가상 판독"} for i in ids]}
+        )
+
+    monkeypatch.setattr(llm, "_call_gemini", fake)
+    many = [{"id": f"cmt_{i}", "content": f"가상 댓글 {i}"} for i in range(n)]
+    out = classify.analyze_comments(many)
+    assert len(out) == n and len(sizes) == expected_calls and max(sizes) <= 50

@@ -40,7 +40,7 @@ GET 상세 예시:
 }
 ```
 - source.type: `youtube | text | image | url_only`; 댓글이 0개일 수도 있음.
-- YouTube 입력 응답에는 최상위 필드 `total_available`(videos.list `commentCount`, 답글 포함 전체 댓글 수. 조회 실패·비공개 통계는 `null`)와 `notice`가 추가된다. `total_available`이 한도보다 크면 `notice`는 `"댓글이 4,000개라 최근 10,000개만 분석합니다."` 형식의 안내이고(같은 문구가 `source.message`에도 저장), 아니면 `null`. 다른 입력 종류에서는 둘 다 `null`.
+- YouTube 입력 응답에는 최상위 필드 `total_available`(videos.list `commentCount`, 답글 포함 전체 댓글 수. 조회 실패·비공개 통계는 `null`)와 `notice`가 추가된다. `total_available`이 한도보다 크면 `notice`는 `"댓글이 4,000개라 최근 10,000개만 분석합니다"` 형식의 안내이고(같은 문구가 `source.message`에도 저장), 아니면 `null`. 다른 입력 종류에서는 둘 다 `null`.
 - YouTube API 실패: `503` 등 적절한 오류 응답 + 수동입력 안내. 외부 URL은 **스크래핑 없이 출처 URL만 저장**해 `type=url_only`, `needs_manual_input=true` 반환.
 - img에서 OCR로 찾지 못한 작성자/시각은 `null`, 없는 게시물 URL을 창작하지 말 것.
 

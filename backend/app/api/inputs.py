@@ -254,7 +254,7 @@ def input_url(case_id: str, body: UrlInput, db: Session = Depends(get_db)) -> In
 
     notice = None
     if limit > 0 and total_available is not None and total_available > limit:
-        notice = f"댓글이 {total_available:,}개라 최근 {limit:,}개만 분석합니다."
+        notice = f"댓글이 {total_available:,}개라 최근 {limit:,}개만 분석합니다"
     source = Source(type="youtube", url=url, collected_at=utcnow(), message=notice)
     result = _persist(db, case, source, fetched if limit == 0 else fetched[:limit], platform="youtube")
     result.total_available = total_available
