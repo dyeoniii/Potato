@@ -33,7 +33,7 @@ async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const type = res.headers.get('Content-Type') ?? '';
   if (!type.toLowerCase().includes('json')) {
     throw new ApiError(
-      `API가 JSON이 아닌 응답(${type || '타입 없음'})을 반환했습니다. 8000 포트의 서버가 악플가드 백엔드가 맞는지 확인하거나 VITE_USE_MOCK=true로 실행하세요.`,
+      `API가 JSON이 아닌 응답(${type || '타입 없음'})을 반환했습니다. [${init?.method ?? 'GET'} ${res.url || BASE + path}, HTTP ${res.status}] 8000 포트의 서버가 악플가드 백엔드가 맞는지 확인하거나 VITE_USE_MOCK=true로 실행하세요.`,
       'INVALID_RESPONSE',
       res.status,
     );
